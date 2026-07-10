@@ -1,0 +1,72 @@
+Our-App
+├── backend
+│   ├── .env
+│   ├── .env.example
+│   ├── app
+│   │   ├── __init__.py
+│   │   ├── config
+│   │   │   ├── base.py
+│   │   │   ├── development.py
+│   │   │   └── production.py
+│   │   ├── domain
+│   │   ├── extensions.py
+│   │   ├── features
+│   │   │   └── auth
+│   │   │       ├── __init__.py
+│   │   │       ├── repository.py
+│   │   │       ├── routes.py
+│   │   │       ├── schema.py
+│   │   │       └── services.py
+│   │   ├── middleware
+│   │   ├── migrations
+│   │   ├── models
+│   │   ├── repositories
+│   │   ├── services
+│   │   ├── sockets
+│   │   └── utils
+│   ├── requirements.txt
+│   ├── run.py
+│   ├── tests
+│   │   ├── auth
+│   │   ├── chat
+│   │   └── planner
+│   └── wsgi.py
+├── frontend
+│   ├── .env.example
+│   ├── .gitignore
+│   ├── eslint.config.js
+│   ├── index.html
+│   ├── package-lock.json
+│   ├── package.json
+│   ├── public
+│   │   ├── favicon.svg
+│   │   └── icons.svg
+│   ├── README.md
+│   ├── src
+│   │   ├── app
+│   │   ├── App.jsx
+│   │   ├── assets
+│   │   │   ├── hero.png
+│   │   │   ├── react.svg
+│   │   │   └── vite.svg
+│   │   ├── components
+│   │   │   ├── layouts
+│   │   │   │   └── GlobalLayout.jsx
+│   │   │   └── routes
+│   │   │       ├── index.jsx
+│   │   │       └── ProtectedRoute.jsx
+│   │   ├── features
+│   │   ├── hooks
+│   │   ├── index.css
+│   │   ├── lib
+│   │   │   ├── axios.js
+│   │   │   └── socket.js
+│   │   ├── main.jsx
+│   │   ├── routes
+│   │   ├── services
+│   │   ├── styles
+│   │   │   └── global.css
+│   │   └── utils
+│   └── vite.config.js
+├── generate_structure.py
+└── project_structure.txt

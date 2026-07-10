@@ -1,0 +1,16 @@
+@import "tailwindcss";
+
+/* 
+  Global variables and custom base layers for 'Together' will go here.
+  Future modules will use standard Tailwind utility classes in their TSX files.
+*/
+:root {
+  --background: #ffffff;
+  --foreground: #0f172a;
+}
+
+body {
+  background-color: var(--background);
+  color: var(--foreground);
+  font-family: system-ui, -apple-system, sans-serif;
+}
