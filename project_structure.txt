@@ -12,12 +12,26 @@ Our-App
 │   │   ├── domain
 │   │   ├── extensions.py
 │   │   ├── features
-│   │   │   └── auth
+│   │   │   ├── auth
+│   │   │   │   ├── __init__.py
+│   │   │   │   ├── repository.py
+│   │   │   │   ├── routes.py
+│   │   │   │   ├── schema.py
+│   │   │   │   └── service.py
+│   │   │   ├── dashboard
+│   │   │   │   ├── constants.py
+│   │   │   │   ├── exceptions.py
+│   │   │   │   ├── repository.py
+│   │   │   │   ├── routes.py
+│   │   │   │   ├── schema.py
+│   │   │   │   └── service.py
+│   │   │   └── pairing
 │   │   │       ├── __init__.py
+│   │   │       ├── constants.py
+│   │   │       ├── exceptions.py
 │   │   │       ├── repository.py
 │   │   │       ├── routes.py
-│   │   │       ├── schema.py
-│   │   │       └── services.py
+│   │   │       └── service.py
 │   │   ├── middleware
 │   │   │   └── auth.py
 │   │   ├── models
@@ -27,8 +41,6 @@ Our-App
 │   │   │   ├── space.py
 │   │   │   ├── space_member.py
 │   │   │   └── user.py
-│   │   ├── repositories
-│   │   ├── services
 │   │   ├── sockets
 │   │   └── utils
 │   ├── migrations
@@ -37,7 +49,10 @@ Our-App
 │   │   ├── README
 │   │   ├── script.py.mako
 │   │   └── versions
-│   │       └── 9b8d1cf81482_initial_schema.py
+│   │       ├── 003_final_core_refinement.py
+│   │       ├── 004_add_missing_unique_constraints.py
+│   │       ├── 9b8d1cf81482_initial_schema.py
+│   │       └── d32418d486c2_refine_core_schema.py
 │   ├── requirements.txt
 │   ├── run.py
 │   ├── tests
@@ -47,6 +62,7 @@ Our-App
 │   └── wsgi.py
 ├── frontend
 │   ├── .env
+│   ├── .env.example
 │   ├── .gitignore
 │   ├── eslint.config.js
 │   ├── index.html
@@ -72,11 +88,77 @@ Our-App
 │   │   ├── contexts
 │   │   │   └── AuthContext.jsx
 │   │   ├── features
-│   │   │   └── auth
+│   │   │   ├── auth
+│   │   │   │   ├── api.js
+│   │   │   │   └── pages
+│   │   │   │       ├── Login.jsx
+│   │   │   │       └── Signup.jsx
+│   │   │   ├── calendar
+│   │   │   │   ├── api.js
+│   │   │   │   ├── components
+│   │   │   │   ├── hooks
+│   │   │   │   ├── pages
+│   │   │   │   ├── services
+│   │   │   │   └── utils
+│   │   │   ├── chat
+│   │   │   │   ├── api.js
+│   │   │   │   ├── components
+│   │   │   │   ├── hooks
+│   │   │   │   ├── pages
+│   │   │   │   ├── services
+│   │   │   │   └── utils
+│   │   │   ├── dashboard
+│   │   │   │   ├── api.js
+│   │   │   │   ├── components
+│   │   │   │   │   ├── ConnectedState.jsx
+│   │   │   │   │   ├── DashboardHeader.jsx
+│   │   │   │   │   ├── WaitingState.jsx
+│   │   │   │   │   ├── WidgetCard.jsx
+│   │   │   │   │   └── WidgetGrid.jsx
+│   │   │   │   ├── hooks
+│   │   │   │   │   └── useDashboard.js
+│   │   │   │   └── pages
+│   │   │   │       └── Dashboard.jsx
+│   │   │   ├── journal
+│   │   │   │   ├── api.js
+│   │   │   │   ├── components
+│   │   │   │   ├── hooks
+│   │   │   │   ├── pages
+│   │   │   │   ├── services
+│   │   │   │   └── utils
+│   │   │   ├── memories
+│   │   │   │   ├── api.js
+│   │   │   │   ├── components
+│   │   │   │   ├── hooks
+│   │   │   │   ├── pages
+│   │   │   │   ├── services
+│   │   │   │   └── utils
+│   │   │   ├── notifications
+│   │   │   │   ├── api.js
+│   │   │   │   ├── components
+│   │   │   │   ├── hooks
+│   │   │   │   ├── pages
+│   │   │   │   ├── services
+│   │   │   │   └── utils
+│   │   │   ├── pairing
+│   │   │   │   ├── api.js
+│   │   │   │   └── pages
+│   │   │   │       ├── CreateSpace.jsx
+│   │   │   │       └── JoinSpace.jsx
+│   │   │   ├── planner
+│   │   │   │   ├── api.js
+│   │   │   │   ├── components
+│   │   │   │   ├── hooks
+│   │   │   │   ├── pages
+│   │   │   │   ├── services
+│   │   │   │   └── utils
+│   │   │   └── wishlist
 │   │   │       ├── api.js
-│   │   │       └── pages
-│   │   │           ├── Login.jsx
-│   │   │           └── Signup.jsx
+│   │   │       ├── components
+│   │   │       ├── hooks
+│   │   │       ├── pages
+│   │   │       ├── services
+│   │   │       └── utils
 │   │   ├── hooks
 │   │   ├── index.css
 │   │   ├── lib

@@ -1,5 +1,5 @@
 from flask import Blueprint, request, jsonify, g
-from .services import AuthService
+from .service import AuthService
 from .repository import AuthRepository
 from app.extensions import db
 from app.middleware.auth import require_auth

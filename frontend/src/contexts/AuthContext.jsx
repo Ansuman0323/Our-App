@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { authApi } from '../features/auth/api';
+import { pairingApi } from '../features/pairing/api';
 
 const AuthContext = createContext({});
 
@@ -8,6 +9,7 @@ export const AuthProvider = ({ children }) => {
     const [user, setUser] = useState(null);       // Supabase IdP User
     const [dbUser, setDbUser] = useState(null);   // Flask Postgres User
     const [loading, setLoading] = useState(true);
+    const [isPaired, setIsPaired] = useState(null);
 
     useEffect(() => {
         const initSession = async () => {
@@ -40,6 +42,7 @@ export const AuthProvider = ({ children }) => {
                 }
             } else if (event === 'SIGNED_OUT') {
                 setDbUser(null);
+                setIsPaired(null);
                 setLoading(false);
             }
         });
@@ -49,10 +52,14 @@ export const AuthProvider = ({ children }) => {
 
     const fetchDbUser = async () => {
         try {
-            const data = await authApi.getMe();
-            setDbUser(data);
+            const [userData, statusData] = await Promise.all([
+                authApi.getMe(),
+                pairingApi.getStatus()
+            ]);
+            setDbUser(userData);
+            setIsPaired(statusData.is_paired);
         } catch (error) {
-            console.error("Failed to fetch database profile", error);
+            console.error("Failed to fetch user data", error);
         } finally {
             setLoading(false);
         }
@@ -77,7 +84,7 @@ export const AuthProvider = ({ children }) => {
     };
 
     return (
-        <AuthContext.Provider value={{ user, dbUser, loading, login, signup, logout }}>
+        <AuthContext.Provider value={{ user, dbUser, loading, isPaired, login, signup, logout }}>
             {children}
         </AuthContext.Provider>
     );

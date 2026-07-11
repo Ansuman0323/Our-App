@@ -3,21 +3,11 @@ import { GlobalLayout } from '../layouts/GlobalLayout';
 import { ProtectedRoute } from './ProtectedRoute';
 import { Login } from '../../features/auth/pages/Login';
 import { Signup } from '../../features/auth/pages/Signup';
-import { useAuth } from '../../contexts/AuthContext';
+import { CreateSpace } from '../../features/pairing/pages/CreateSpace';
+import { JoinSpace } from '../../features/pairing/pages/JoinSpace';
 
-// Simple Dashboard placeholder with Logout for testing
-const DashboardPlaceholder = () => {
-    const { dbUser, logout } = useAuth();
-    return (
-        <div className="p-6">
-            <h2 className="text-2xl font-bold">Dashboard Placeholder</h2>
-            <p className="mt-4">Welcome, {dbUser?.display_name || 'User'}!</p>
-            <button onClick={logout} className="mt-6 bg-red-500 text-white px-4 py-2 rounded">
-                Log Out
-            </button>
-        </div>
-    );
-};
+// Import our new dedicated Dashboard module
+import { Dashboard } from '../../features/dashboard/pages/Dashboard';
 
 export const router = createBrowserRouter([
     {
@@ -36,13 +26,21 @@ export const router = createBrowserRouter([
                 path: 'signup',
                 element: <Signup />,
             },
-            // Protected Routes
+            // Protected Routes (Must be logged in to access)
             {
                 element: <ProtectedRoute />,
                 children: [
                     {
                         path: 'dashboard',
-                        element: <DashboardPlaceholder />,
+                        element: <Dashboard />, // The real Dashboard is now mounted here!
+                    },
+                    {
+                        path: 'pairing/create',
+                        element: <CreateSpace />,
+                    },
+                    {
+                        path: 'pairing/join',
+                        element: <JoinSpace />,
                     },
                 ],
             },

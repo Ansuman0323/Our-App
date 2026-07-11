@@ -34,6 +34,10 @@ def initialize_extensions(flask_app):
 def register_blueprints(flask_app):
     from app.features.auth.routes import auth_bp
     flask_app.register_blueprint(auth_bp, url_prefix='/api/v1/auth')
+    from app.features.pairing.routes import pairing_bp
+    flask_app.register_blueprint(pairing_bp, url_prefix='/api/v1/pairing')
+    from app.features.dashboard.routes import dashboard_bp
+    flask_app.register_blueprint(dashboard_bp)
 
 def register_error_handlers(flask_app):
     @flask_app.errorhandler(Exception)
