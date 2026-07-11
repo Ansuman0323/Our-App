@@ -1,14 +1,20 @@
 import React from 'react';
 import { Navigate, Outlet } from 'react-router-dom';
+import { useAuth } from '../../contexts/AuthContext';
 
 export const ProtectedRoute = () => {
-    // Placeholder: In the future, this will check AuthContext or Supabase session
-    const isAuthenticated = false; // Forced false for Module 0
+    const { user, loading } = useAuth();
 
-    if (!isAuthenticated) {
-        // Redirect to login (or return null/loading state)
-        // For now, we just pass through or render a placeholder
-        return <div>Authentication required placeholder</div>;
+    if (loading) {
+        return (
+            <div className="flex h-screen w-full items-center justify-center">
+                <div className="animate-pulse text-lg font-semibold text-slate-500">Loading...</div>
+            </div>
+        );
+    }
+
+    if (!user) {
+        return <Navigate to="/login" replace />;
     }
 
     return <Outlet />;

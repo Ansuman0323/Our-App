@@ -3,43 +3,39 @@ from flask import Flask
 from .extensions import db, migrate, socketio, cors
 
 def create_app(config_name=None):
-    app = Flask(__name__)
+    # Rename instance to 'flask_app' to avoid colliding with the 'app' module
+    flask_app = Flask(__name__)
     
-    # Load configuration
     if config_name is None:
         config_name = os.environ.get('FLASK_ENV', 'development')
     
     if config_name == 'production':
-        app.config.from_object('app.config.production.ProductionConfig')
+        flask_app.config.from_object('app.config.production.ProductionConfig')
     else:
-        app.config.from_object('app.config.development.DevelopmentConfig')
+        flask_app.config.from_object('app.config.development.DevelopmentConfig')
 
-    # Initialize Extensions
-    initialize_extensions(app)
+    initialize_extensions(flask_app)
     
-    # Register Blueprints
-    register_blueprints(app)
-    
-    # Register Error Handlers
-    register_error_handlers(app)
+    # Register all SQLAlchemy models immediately after DB initialization
+    with flask_app.app_context():
+        from app import models 
+        
+    register_blueprints(flask_app)
+    register_error_handlers(flask_app)
 
-    return app
+    return flask_app
 
-def initialize_extensions(app):
-    cors.init_app(app, origins=[app.config.get('CLIENT_URL')], supports_credentials=True)
-    db.init_app(app)
-    migrate.init_app(app, db)
-    socketio.init_app(app, cors_allowed_origins=app.config.get('CLIENT_URL'))
+def initialize_extensions(flask_app):
+    cors.init_app(flask_app, origins=[flask_app.config.get('CLIENT_URL', 'http://localhost:5173')], supports_credentials=True)
+    db.init_app(flask_app)
+    migrate.init_app(flask_app, db)
+    socketio.init_app(flask_app, cors_allowed_origins=flask_app.config.get('CLIENT_URL', 'http://localhost:5173'))
 
-def register_blueprints(app):
-    # Example registration for future modules
+def register_blueprints(flask_app):
     from app.features.auth.routes import auth_bp
-    app.register_blueprint(auth_bp, url_prefix='/api/v1/auth')
-    
-    # Future registrations: profile_bp, pairing_bp, chat_bp, etc.
+    flask_app.register_blueprint(auth_bp, url_prefix='/api/v1/auth')
 
-def register_error_handlers(app):
-    @app.errorhandler(Exception)
+def register_error_handlers(flask_app):
+    @flask_app.errorhandler(Exception)
     def handle_exception(e):
-        # Base global error handler placeholder
         return {"error": "Internal Server Error", "message": str(e)}, 500

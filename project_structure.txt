@@ -2,6 +2,7 @@ Our-App
 ├── backend
 │   ├── .env
 │   ├── .env.example
+│   ├── .gitignore
 │   ├── app
 │   │   ├── __init__.py
 │   │   ├── config
@@ -18,12 +19,25 @@ Our-App
 │   │   │       ├── schema.py
 │   │   │       └── services.py
 │   │   ├── middleware
-│   │   ├── migrations
+│   │   │   └── auth.py
 │   │   ├── models
+│   │   │   ├── __init__.py
+│   │   │   ├── mixins.py
+│   │   │   ├── profile.py
+│   │   │   ├── space.py
+│   │   │   ├── space_member.py
+│   │   │   └── user.py
 │   │   ├── repositories
 │   │   ├── services
 │   │   ├── sockets
 │   │   └── utils
+│   ├── migrations
+│   │   ├── alembic.ini
+│   │   ├── env.py
+│   │   ├── README
+│   │   ├── script.py.mako
+│   │   └── versions
+│   │       └── 9b8d1cf81482_initial_schema.py
 │   ├── requirements.txt
 │   ├── run.py
 │   ├── tests
@@ -32,7 +46,7 @@ Our-App
 │   │   └── planner
 │   └── wsgi.py
 ├── frontend
-│   ├── .env.example
+│   ├── .env
 │   ├── .gitignore
 │   ├── eslint.config.js
 │   ├── index.html
@@ -55,12 +69,20 @@ Our-App
 │   │   │   └── routes
 │   │   │       ├── index.jsx
 │   │   │       └── ProtectedRoute.jsx
+│   │   ├── contexts
+│   │   │   └── AuthContext.jsx
 │   │   ├── features
+│   │   │   └── auth
+│   │   │       ├── api.js
+│   │   │       └── pages
+│   │   │           ├── Login.jsx
+│   │   │           └── Signup.jsx
 │   │   ├── hooks
 │   │   ├── index.css
 │   │   ├── lib
 │   │   │   ├── axios.js
-│   │   │   └── socket.js
+│   │   │   ├── socket.js
+│   │   │   └── supabase.js
 │   │   ├── main.jsx
 │   │   ├── routes
 │   │   ├── services

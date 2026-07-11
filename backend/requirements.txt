@@ -1,0 +1,9 @@
+Flask
+Flask-Cors
+Flask-Migrate
+Flask-SQLAlchemy
+Flask-SocketIO
+PyJWT
+psycopg2-binary
+python-dotenv
+supabase
