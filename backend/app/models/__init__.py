@@ -4,3 +4,6 @@ from .user import User
 from .profile import Profile
 from .space import Space
 from .space_member import SpaceMember
+from .message import Message
+from .message_attachment import MessageAttachment
+from .message_receipt import MessageReceipt

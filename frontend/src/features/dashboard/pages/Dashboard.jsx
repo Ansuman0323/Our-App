@@ -1,49 +1,49 @@
 import React from 'react';
-import { AnimatePresence, motion } from 'framer-motion';
-import { useDashboard } from '../hooks/useDashboard';
-import { WaitingState } from '../components/WaitingState';
-import { ConnectedState } from '../components/ConnectedState';
+import { Link } from 'react-router-dom';
+import { useAuth } from '../../../contexts/AuthContext';
 
 export const Dashboard = () => {
-    const { data, loading, error } = useDashboard();
-
-    if (loading && !data) {
-        return (
-            <div className="flex h-screen items-center justify-center bg-slate-50">
-                <div className="animate-pulse text-sm font-medium text-slate-400">Loading your space...</div>
-            </div>
-        );
-    }
-
-    if (error) return <div className="p-4 text-center text-red-500">Error loading dashboard: {error}</div>;
+    const { dbUser, isPaired } = useAuth();
 
     return (
-        <div className="min-h-screen bg-slate-50 text-slate-900 font-sans pb-20 md:pb-6">
-            <main className="px-6 py-6 max-w-4xl mx-auto">
-                {/* AnimatePresence belongs HERE in the main layout */}
-                <AnimatePresence mode="wait">
-                    {data?.space_status === 'waiting' ? (
-                        <motion.div
-                            key="waiting"
-                            initial={{ opacity: 0, y: 10 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            exit={{ opacity: 0, y: -10 }}
-                            transition={{ duration: 0.4 }}
+        <div className="p-8 max-w-4xl mx-auto">
+            <h1 className="text-2xl font-bold mb-6 text-slate-800">
+                Welcome, {dbUser?.display_name || 'User'}!
+            </h1>
+
+            {isPaired ? (
+                <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+                    <h2 className="text-lg font-semibold text-slate-800 mb-2">Your Space</h2>
+                    <p className="text-slate-600 mb-6">You are paired and ready to chat.</p>
+
+                    {/* The button that takes you to the chat module */}
+                    <Link
+                        to="/chat"
+                        className="bg-indigo-600 text-white px-6 py-2.5 rounded-lg font-medium hover:bg-indigo-700 transition-colors inline-block"
+                    >
+                        Open Chat
+                    </Link>
+                </div>
+            ) : (
+                <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+                    <h2 className="text-lg font-semibold text-slate-800 mb-2">Not Paired Yet</h2>
+                    <p className="text-slate-600 mb-6">Create or join a space to start chatting.</p>
+                    <div className="flex gap-4">
+                        <Link
+                            to="/pairing/create"
+                            className="bg-indigo-600 text-white px-5 py-2.5 rounded-lg font-medium hover:bg-indigo-700 transition-colors"
                         >
-                            <WaitingState />
-                        </motion.div>
-                    ) : (
-                        <motion.div
-                            key="connected"
-                            initial={{ opacity: 0, y: 10 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ duration: 0.5 }}
+                            Create Space
+                        </Link>
+                        <Link
+                            to="/pairing/join"
+                            className="bg-slate-100 text-slate-800 px-5 py-2.5 rounded-lg font-medium hover:bg-slate-200 transition-colors"
                         >
-                            <ConnectedState widgets={data?.widgets} />
-                        </motion.div>
-                    )}
-                </AnimatePresence>
-            </main>
+                            Join Space
+                        </Link>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

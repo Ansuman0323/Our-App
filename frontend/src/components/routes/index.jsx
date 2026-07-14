@@ -8,6 +8,7 @@ import { JoinSpace } from '../../features/pairing/pages/JoinSpace';
 
 // Import our new dedicated Dashboard module
 import { Dashboard } from '../../features/dashboard/pages/Dashboard';
+import { ChatPage } from '../../features/chat/pages/ChatPage';
 
 export const router = createBrowserRouter([
     {
@@ -42,6 +43,7 @@ export const router = createBrowserRouter([
                         path: 'pairing/join',
                         element: <JoinSpace />,
                     },
+                    { path: 'chat', element: <ChatPage /> },
                 ],
             },
         ],
