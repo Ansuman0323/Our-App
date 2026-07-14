@@ -56,6 +56,16 @@ export const useChatSocket = (onReceiveMessage, onReceiptUpdated, onReconnectSyn
             socket.on('presence_changed', (data) => setPartnerStatus(data.status));
             socket.on('typing_start', () => setIsPartnerTyping(true));
             socket.on('typing_stop', () => setIsPartnerTyping(false));
+            socket.on("connect_error", (err) => {
+                console.error("CONNECT ERROR");
+                console.error(err);
+                console.error("Message:", err.message);
+                console.error("Description:", err.description);
+                console.error("Context:", err.context);
+            });
+            socket.on("disconnect", (reason) => {
+                console.log("Disconnected:", reason);
+            });
         };
 
         initSocket();

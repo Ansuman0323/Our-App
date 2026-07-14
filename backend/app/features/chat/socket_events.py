@@ -8,8 +8,9 @@ from app.features.chat.repository import ChatRepository
 from app.features.chat.service import ChatService
 from app.features.chat.exceptions import ChatException
 from app.features.chat.presence import PresenceManager
-import jwt
-#from app.middleware.auth import decode_auth_token
+from app.middleware.auth import verify_supabase_token
+from app.models.user import User
+from app.models.space_member import SpaceMember
 
 logger = logging.getLogger(__name__)
 presence_manager = PresenceManager()
@@ -45,67 +46,54 @@ def socket_error_handler(f):
     return wrapper
 
 def authenticate_socket(auth_payload):
-    """Authenticate the socket connection."""
-
-    if not auth_payload or "token" not in auth_payload:
-        logger.warning("Socket auth failed: No token provided.")
+    """Authenticates the socket using the shared REST JWT helper."""
+    if not auth_payload or 'token' not in auth_payload:
         return None
-
     try:
-        # Get token from frontend
-        token = auth_payload["token"]
-
-        # Print JWT header for debugging
-        header = jwt.get_unverified_header(token)
-        print("JWT Header:", header)
-
-        # Decode token
-        payload = jwt.decode(
-            token,
-            current_app.config["SECRET_KEY"],
-            algorithms=["HS256"]
-        )
-
-        print("JWT Payload:", payload)
-
-        return payload.get("sub")
-
+        # Rely entirely on the shared helper for validation and error raising
+        payload = verify_supabase_token(auth_payload['token'])
+        return payload.get('sub')
     except Exception as e:
-        logger.warning(f"Socket auth failed: {e}")
+        logger.warning(f"Socket auth failed: {str(e)}")
         return None
-
+    
 # ==========================================
 # CONNECTION LIFECYCLE
 # ==========================================
 
-@socketio.on('connect')
+@socketio.on("connect")
 def handle_connect(auth):
-    user_id = authenticate_socket(auth)
-    if not user_id:
-        logger.warning("Socket connection rejected: Unauthorized", extra={"sid": request.sid})
-        return False  # Disconnects immediately
-        
-    try:
-        service = get_chat_service()
-        # Verifies membership; throws if not in a space
-        space_id = service._verify_space_membership(user_id) 
-        
-        # Save securely to socket session context
-        request.user_id = str(user_id)
-        request.space_id = str(space_id)
-        request.room_name = f"space_{space_id}"
-        request.last_typing_time = 0  # Initialize throttle state
-        
-        join_room(request.room_name)
-        logger.info("Socket connected & room joined", extra={"user_id": request.user_id, "room": request.room_name})
-        
-        # Presence Tracking
-        is_newly_online = presence_manager.add_connection(request.user_id, request.sid)
-        if is_newly_online:
-            emit('presence_changed', {'user_id': request.user_id, 'status': 'online'}, room=request.room_name, include_self=False)
-            
-    except ChatException:
+    supabase_uid = authenticate_socket(auth)
+    if not supabase_uid:
         return False
+
+    user = User.query.filter_by(supabase_uid=supabase_uid).first()
+    if not user or not user.space_membership:
+        return False
+
+    active_space = user.space_membership.space_id
+    
+    # 1 & 2. Authenticate and Join Room (Restoring vital request context)
+    request.user_id = str(user.id)
+    request.room_name = str(active_space)
+    join_room(request.room_name)
+    
+    # 3. Register connection in PresenceManager
+    is_newly_online = presence_manager.add_connection(request.user_id, request.sid)
+    
+    # 4. Notify existing users that this user is online
+    if is_newly_online:
+        emit('presence_changed', {'user_id': request.user_id, 'status': 'online'}, room=request.room_name, include_self=False)
+        
+    # 5. Immediately determine whether the partner is already online
+    partner = SpaceMember.query.filter(
+        SpaceMember.space_id == active_space, 
+        SpaceMember.user_id != user.id
+    ).first()
+    
+    # 6. Send the current partner status ONLY to the newly connected client
+    if partner and presence_manager.is_online(partner.user_id):
+        emit('presence_changed', {'user_id': str(partner.user_id), 'status': 'online'}, to=request.sid)
 
 @socketio.on('disconnect')
 def handle_disconnect():
@@ -125,6 +113,7 @@ def handle_disconnect():
 @socketio.on('send_message')
 @socket_error_handler
 def handle_send_message(payload):
+    print("SEND_MESSAGE EVENT RECEIVED")
     service = get_chat_service()
     dto, is_created = service.send_message(request.user_id, payload)
     

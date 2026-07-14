@@ -30,7 +30,7 @@ def initialize_extensions(flask_app):
     db.init_app(flask_app)
     migrate.init_app(flask_app, db)
     socketio.init_app(flask_app, cors_allowed_origins=flask_app.config.get('CLIENT_URL', 'http://localhost:5173'))
-
+    print("SocketIO async mode:", socketio.async_mode)
 def register_blueprints(flask_app):
     from app.features.auth.routes import auth_bp
     flask_app.register_blueprint(auth_bp, url_prefix='/api/v1/auth')
@@ -42,7 +42,7 @@ def register_blueprints(flask_app):
     flask_app.register_blueprint(chat_bp)
     with flask_app.app_context():
         import app.features.chat.socket_events
-        
+              
 def register_error_handlers(flask_app):
     @flask_app.errorhandler(Exception)
     def handle_exception(e):

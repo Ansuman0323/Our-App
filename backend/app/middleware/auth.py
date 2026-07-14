@@ -7,6 +7,34 @@ from app.models.user import User
 
 logger = logging.getLogger(__name__)
 
+def verify_supabase_token(token):
+    """
+    Shared helper to securely decode and verify Supabase JWTs.
+    Supports HS256, RS256, and ES256 algorithms automatically.
+    """
+    unverified_header = jwt.get_unverified_header(token)
+    alg = unverified_header.get('alg', 'HS256')
+    
+    if alg in ['RS256', 'ES256']:
+        supabase_url = current_app.config.get("SUPABASE_URL")
+        jwks_url = f"{supabase_url}/auth/v1/.well-known/jwks.json"
+        
+        jwks_client = PyJWKClient(jwks_url, cache_keys=True)
+        signing_key = jwks_client.get_signing_key_from_jwt(token)
+        secret_or_key = signing_key.key
+    else:
+        secret_or_key = current_app.config.get("SUPABASE_JWT_SECRET")
+
+    # Decode and verify the token. Raises exceptions on failure.
+    payload = jwt.decode(
+        token,
+        secret_or_key,
+        algorithms=[alg],
+        audience="authenticated",
+        options={"verify_iat": False} 
+    )
+    return payload
+
 def require_auth(f):
     @wraps(f)
     def decorated(*args, **kwargs):
@@ -18,27 +46,8 @@ def require_auth(f):
         token = auth_header.split(" ")[1]
         
         try:
-            unverified_header = jwt.get_unverified_header(token)
-            alg = unverified_header.get('alg', 'HS256')
-            
-            if alg in ['RS256', 'ES256']:
-                supabase_url = current_app.config.get("SUPABASE_URL")
-                jwks_url = f"{supabase_url}/auth/v1/.well-known/jwks.json"
-                
-                jwks_client = PyJWKClient(jwks_url, cache_keys=True)
-                signing_key = jwks_client.get_signing_key_from_jwt(token)
-                secret_or_key = signing_key.key
-            else:
-                secret_or_key = current_app.config.get("SUPABASE_JWT_SECRET")
-
-            # Update: Explicitly disable 'iat' verification to completely bypass local clock skew
-            payload = jwt.decode(
-                token,
-                secret_or_key,
-                algorithms=[alg],
-                audience="authenticated",
-                options={"verify_iat": False} 
-            )
+            # Delegate all cryptographic checks to the shared helper
+            payload = verify_supabase_token(token)
             
             supabase_uid = payload["sub"]
             g.supabase_uid = supabase_uid

@@ -5,6 +5,7 @@ from app.middleware.auth import require_auth
 from app.features.chat.repository import ChatRepository
 from app.features.chat.service import ChatService
 from app.features.chat.exceptions import ChatException
+from app.extensions import socketio
 
 logger = logging.getLogger(__name__)
 chat_bp = Blueprint('chat', __name__, url_prefix='/api/v1/chat')
@@ -31,7 +32,19 @@ def handle_chat_exception(e):
 @require_auth
 def send_message():
     data = request.get_json()
+
     message_dto, is_created = service.send_message(g.current_user.id, data)
+
+    if is_created:
+        socketio.emit(
+            "receive_message",
+            message_dto,
+            room=str(message_dto["space_id"]),
+            namespace="/"
+        )
+
+        print("Broadcasted to room:", message_dto["space_id"])
+
     status_code = 201 if is_created else 200
     return jsonify(message_dto), status_code
 
