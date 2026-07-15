@@ -84,6 +84,16 @@ export const useMessageHistory = () => {
         });
     }, []);
 
+    const updateMessage = useCallback((messageId, updates) => {
+        setMessages(prev =>
+            prev.map(msg =>
+                msg.id === messageId ||
+                    msg.client_message_id === messageId
+                    ? { ...msg, ...updates }
+                    : msg
+            )
+        );
+    }, []);
     return {
         messages,
         isLoading,
@@ -94,6 +104,7 @@ export const useMessageHistory = () => {
         addOptimisticMessage,
         confirmOptimisticMessage,
         markMessageError,
-        handleIncomingMessage
+        handleIncomingMessage,
+        updateMessage
     };
 };

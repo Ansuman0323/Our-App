@@ -57,13 +57,34 @@ def get_messages():
     messages_dto = service.get_messages(g.current_user.id, before_message_id, limit)
     return jsonify(messages_dto), 200
 
-@chat_bp.route('/messages/<message_id>', methods=['PATCH'])
+@chat_bp.route("/messages/<message_id>", methods=["PATCH"])
 @require_auth
 def edit_message(message_id):
-    data = request.get_json()
-    new_content = data.get('content')
-    message_dto = service.edit_message(g.current_user.id, message_id, new_content)
-    return jsonify(message_dto), 200
+    payload = request.get_json()
+    new_content = payload.get("content")
+
+    try:
+        dto = service.edit_message(
+            g.current_user.id,
+            message_id,
+            new_content
+        )
+
+        socketio.emit(
+            "message_updated",
+            dto,
+            room=str(dto["space_id"])
+        )
+
+        return jsonify(dto), 200
+
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({
+            "error": type(e).__name__,
+            "message": str(e)
+        }), 400
 
 @chat_bp.route('/messages/<message_id>', methods=['DELETE'])
 @require_auth

@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useAuth } from '../../../contexts/AuthContext';
 import { useChat } from '../hooks/useChat';
 import { MessageList } from '../components/MessageList';
@@ -10,8 +10,13 @@ export const ChatPage = () => {
 
     const {
         messages, isLoading, loadInitialMessages, loadMoreMessages, hasMore, isFetchingTop,
-        sendMessage, partnerStatus, isPartnerTyping, emitTypingStart, emitTypingStop
+        sendMessage, editMessage, partnerStatus, isPartnerTyping, emitTypingStart, emitTypingStop
     } = useChat(dbUser);
+
+    // The message currently being edited (or null). Owned here because both
+    // MessageList (where "Edit" is selected from the actions menu) and
+    // MessageInput (which becomes the edit UI) need to read/drive it.
+    const [editingMessage, setEditingMessage] = useState(null);
 
     useEffect(() => {
         loadInitialMessages();
@@ -22,6 +27,30 @@ export const ChatPage = () => {
         const partnerMessage = messages.find(m => m.sender_id !== dbUser.id);
         return partnerMessage?.sender_name || 'Partner';
     }, [messages, dbUser]);
+
+    // If the message being edited disappears from the list (e.g. deleted
+    // from another device) or gets updated elsewhere, don't leave the
+    // compose bar stuck in a stale edit state.
+    useEffect(() => {
+        if (!editingMessage) return;
+        const stillExists = messages.some(
+            (m) => (m.id ?? m.client_message_id) === (editingMessage.id ?? editingMessage.client_message_id)
+        );
+        if (!stillExists) setEditingMessage(null);
+    }, [messages, editingMessage]);
+
+    const handleEditMessage = (msg) => setEditingMessage(msg);
+
+    const handleCancelEdit = () => setEditingMessage(null);
+
+    const handleSaveEdit = async (msg, newContent) => {
+        // editMessage is expected to: optimistically patch the message's
+        // content/is_edited in local state immediately, call the PATCH
+        // endpoint, and reconcile with the "message_updated" socket event
+        // (mirroring how sendMessage/optimistic sends already work).
+        setEditingMessage(null);
+        await editMessage(msg, newContent);
+    };
 
     if (isLoading) {
         return (
@@ -50,12 +79,16 @@ export const ChatPage = () => {
                     isFetchingTop={isFetchingTop}
                     onLoadMore={loadMoreMessages}
                     onRetryMessage={sendMessage}
+                    onEditMessage={handleEditMessage}
                 />
 
                 <MessageInput
                     onSend={sendMessage}
                     emitTypingStart={emitTypingStart}
                     emitTypingStop={emitTypingStop}
+                    editingMessage={editingMessage}
+                    onSaveEdit={handleSaveEdit}
+                    onCancelEdit={handleCancelEdit}
                 />
             </div>
         </div>

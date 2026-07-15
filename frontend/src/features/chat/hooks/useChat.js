@@ -15,12 +15,18 @@ export const useChat = (user) => {
         history.loadInitialMessages(true); // Silent sync, no loading spinner
     }, [history]);
 
-    const socket = useChatSocket(history.handleIncomingMessage, handleReceiptUpdated, handleReconnectSync);
+    // NEW: Passes history.updateMessage to listen for incoming edits from partner
+    const socket = useChatSocket(
+        history.handleIncomingMessage,
+        handleReceiptUpdated,
+        handleReconnectSync,
+        history.updateMessage
+    );
 
     const sendMessage = async (content, existingTempId = null) => {
         if (!content.trim()) return;
 
-        // FIX: Prevent concurrent retry spam
+        // Prevent concurrent retry spam
         if (existingTempId) {
             const existingMsg = history.messages.find(m => m.client_message_id === existingTempId);
             if (existingMsg && existingMsg.status === 'pending') return;
@@ -56,5 +62,43 @@ export const useChat = (user) => {
         }
     };
 
-    return { ...history, ...socket, sendMessage };
+    // NEW: The complete end-to-end Edit Pipeline
+    const editMessage = async (message, newContent) => {
+        if (!newContent.trim() || newContent === message.content) return;
+
+        const previousContent = message.content;
+        const messageId = message.id || message.client_message_id;
+
+        // 1. Optimistic Update: Instantly change the UI to feel lightning fast
+        if (history.updateMessage) {
+            history.updateMessage(messageId, {
+                content: newContent,
+                is_edited: true,
+                status: 'pending'
+            });
+        }
+
+        try {
+            // 2. Network Request
+            const updatedServerMsg = await chatApi.editMessage(messageId, newContent);
+
+            // 3. Confirm Update: Replace with authoritative server data
+            if (history.updateMessage) {
+                history.updateMessage(messageId, updatedServerMsg);
+            }
+        } catch (error) {
+            console.error("Failed to edit message", error);
+
+            // 4. Rollback: Revert to previous content on failure
+            if (history.updateMessage) {
+                history.updateMessage(messageId, {
+                    content: previousContent,
+                    status: 'error'
+                });
+            }
+        }
+    };
+
+    // RETURN INCLUDES editMessage
+    return { ...history, ...socket, sendMessage, editMessage };
 };

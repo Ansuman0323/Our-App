@@ -2,7 +2,12 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import { io } from 'socket.io-client';
 import { supabase } from '../../../lib/supabase';
 
-export const useChatSocket = (onReceiveMessage, onReceiptUpdated, onReconnectSync) => {
+export const useChatSocket = (
+    onReceiveMessage,
+    onReceiptUpdated,
+    onReconnectSync,
+    onMessageUpdated
+) => {
     const socketRef = useRef(null);
     const hasConnectedOnce = useRef(false);
 
@@ -12,11 +17,13 @@ export const useChatSocket = (onReceiveMessage, onReceiptUpdated, onReconnectSyn
     const onReceiveRef = useRef(onReceiveMessage);
     const onReceiptRef = useRef(onReceiptUpdated);
     const onSyncRef = useRef(onReconnectSync);
+    const onUpdateRef = useRef(onMessageUpdated);
 
     useEffect(() => {
         onReceiveRef.current = onReceiveMessage;
         onReceiptRef.current = onReceiptUpdated;
         onSyncRef.current = onReconnectSync;
+        onUpdateRef.current = onMessageUpdated;
     });
 
     useEffect(() => {
@@ -65,6 +72,13 @@ export const useChatSocket = (onReceiveMessage, onReceiptUpdated, onReconnectSyn
             });
             socket.on("disconnect", (reason) => {
                 console.log("Disconnected:", reason);
+            });
+            socket.on("message_updated", dto => {
+                onUpdateRef.current?.(dto.id, dto);
+            });
+
+            socket.on("message_deleted", dto => {
+                onUpdateRef.current?.(dto.id, dto);
             });
         };
 
