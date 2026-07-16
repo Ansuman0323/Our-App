@@ -8,15 +8,16 @@ import { ChatHeader } from '../components/ChatHeader';
 export const ChatPage = () => {
     const { dbUser } = useAuth();
 
+    // Destructure it from the hook
     const {
         messages, isLoading, loadInitialMessages, loadMoreMessages, hasMore, isFetchingTop,
-        sendMessage, editMessage, partnerStatus, isPartnerTyping, emitTypingStart, emitTypingStop
+        sendMessage, editMessage, deleteMessage, deleteMessageForMe, toggleReaction, // <-- Added deleteMessageForMe
+        partnerStatus, isPartnerTyping, emitTypingStart, emitTypingStop
     } = useChat(dbUser);
 
-    // The message currently being edited (or null). Owned here because both
-    // MessageList (where "Edit" is selected from the actions menu) and
-    // MessageInput (which becomes the edit UI) need to read/drive it.
+    // ACTION STATES
     const [editingMessage, setEditingMessage] = useState(null);
+    const [replyingToMessage, setReplyingToMessage] = useState(null);
 
     useEffect(() => {
         loadInitialMessages();
@@ -28,28 +29,28 @@ export const ChatPage = () => {
         return partnerMessage?.sender_name || 'Partner';
     }, [messages, dbUser]);
 
-    // If the message being edited disappears from the list (e.g. deleted
-    // from another device) or gets updated elsewhere, don't leave the
-    // compose bar stuck in a stale edit state.
-    useEffect(() => {
-        if (!editingMessage) return;
-        const stillExists = messages.some(
-            (m) => (m.id ?? m.client_message_id) === (editingMessage.id ?? editingMessage.client_message_id)
-        );
-        if (!stillExists) setEditingMessage(null);
-    }, [messages, editingMessage]);
-
-    const handleEditMessage = (msg) => setEditingMessage(msg);
-
-    const handleCancelEdit = () => setEditingMessage(null);
-
+    // HANDLERS
     const handleSaveEdit = async (msg, newContent) => {
-        // editMessage is expected to: optimistically patch the message's
-        // content/is_edited in local state immediately, call the PATCH
-        // endpoint, and reconcile with the "message_updated" socket event
-        // (mirroring how sendMessage/optimistic sends already work).
-        setEditingMessage(null);
         await editMessage(msg, newContent);
+        setEditingMessage(null);
+    };
+
+    const handleSendMessage = async (
+        content,
+        tempId,
+        replyingTo,
+        file,
+        type
+    ) => {
+        await sendMessage(
+            content,
+            tempId,
+            replyingTo,
+            file,
+            type
+        );
+
+        setReplyingToMessage(null);
     };
 
     if (isLoading) {
@@ -64,8 +65,8 @@ export const ChatPage = () => {
     }
 
     return (
-        <div className="bg-slate-100 min-h-[100dvh] flex items-center justify-center md:py-6 md:px-4">
-            <div className="flex flex-col w-full h-[100dvh] md:h-[calc(100dvh-48px)] max-w-[960px] bg-[#efeae2] relative md:shadow-2xl md:rounded-[2rem] overflow-hidden border-slate-200/60 md:border">
+        <div className="bg-slate-100 min-h-[100dvh] flex items-center justify-center md:py-6 md:px-4 overflow-hidden">
+            <div className="flex flex-col w-full h-[100dvh] md:h-[calc(100dvh-48px)] max-w-[960px] bg-[#efeae2] relative md:shadow-2xl md:rounded-[2rem] overflow-hidden border-slate-200/60 md:border select-none">
                 <ChatHeader
                     partnerName={partnerName}
                     status={partnerStatus}
@@ -79,16 +80,24 @@ export const ChatPage = () => {
                     isFetchingTop={isFetchingTop}
                     onLoadMore={loadMoreMessages}
                     onRetryMessage={sendMessage}
-                    onEditMessage={handleEditMessage}
+                    onEditMessage={setEditingMessage}
+                    onReplyMessage={setReplyingToMessage}
+                    onDeleteMessage={deleteMessage} // NEW
+                    onToggleReaction={toggleReaction}
+                    onDeleteMessageForMe={deleteMessageForMe}
                 />
 
                 <MessageInput
-                    onSend={sendMessage}
+                    onSend={handleSendMessage}
                     emitTypingStart={emitTypingStart}
                     emitTypingStop={emitTypingStop}
+
                     editingMessage={editingMessage}
                     onSaveEdit={handleSaveEdit}
-                    onCancelEdit={handleCancelEdit}
+                    onCancelEdit={() => setEditingMessage(null)}
+
+                    replyingToMessage={replyingToMessage}
+                    onCancelReply={() => setReplyingToMessage(null)}
                 />
             </div>
         </div>

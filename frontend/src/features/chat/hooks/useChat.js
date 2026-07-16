@@ -1,21 +1,19 @@
-import { useCallback } from 'react';
+import { useCallback, useEffect } from 'react';
 import { useMessageHistory } from './useMessageHistory';
 import { useChatSocket } from './useChatSocket';
 import { chatApi } from '../api';
+import { toast } from 'react-hot-toast';
 
 export const useChat = (user) => {
     const history = useMessageHistory();
 
     const handleReceiptUpdated = useCallback((receiptDto) => {
-        // Future: Update specific message delivered/read ticks
     }, []);
 
-    // Passes silent load logic to socket to fire on reconnects
     const handleReconnectSync = useCallback(() => {
-        history.loadInitialMessages(true); // Silent sync, no loading spinner
+        history.loadInitialMessages(true);
     }, [history]);
 
-    // NEW: Passes history.updateMessage to listen for incoming edits from partner
     const socket = useChatSocket(
         history.handleIncomingMessage,
         handleReceiptUpdated,
@@ -23,10 +21,25 @@ export const useChat = (user) => {
         history.updateMessage
     );
 
-    const sendMessage = async (content, existingTempId = null) => {
-        if (!content.trim()) return;
+    useEffect(() => {
+        if (!socket.socket) return;
+        const handleDeleted = (dto) => {
+            if (history.updateMessage) history.updateMessage(dto.id, dto);
+        };
+        socket.socket.on('message_deleted', handleDeleted);
+        return () => socket.socket.off('message_deleted', handleDeleted);
+    }, [socket.socket, history.updateMessage]);
 
-        // Prevent concurrent retry spam
+    // UPDATE: New signature supporting file and type
+    const sendMessage = async (
+        content,
+        existingTempId = null,
+        replyToMessage = null,
+        file = null,
+        type = 'TEXT'
+    ) => {
+        if (!content.trim() && !file) return;
+
         if (existingTempId) {
             const existingMsg = history.messages.find(m => m.client_message_id === existingTempId);
             if (existingMsg && existingMsg.status === 'pending') return;
@@ -38,10 +51,31 @@ export const useChat = (user) => {
             history.addOptimisticMessage({
                 id: clientMessageId,
                 client_message_id: clientMessageId,
-                content,
+                content: content || '',
+                type: type,
                 sender_id: user.id,
                 status: 'pending',
-                created_at: new Date().toISOString()
+                created_at: new Date().toISOString(),
+                reply_to_id: replyToMessage ? replyToMessage.id : null,
+                uploadProgress: file ? 0 : undefined,
+                // UPDATED: Use singular attachment object to match new backend schema
+                attachment: file ? {
+                    storage_key: null,
+                    url: URL.createObjectURL(file),
+                    file_name: file.name,
+                    mime_type: file.type,
+                    file_size: file.size,
+                    thumbnail_url: null
+                } : null,
+                reactions: [],
+                reply: replyToMessage ? {
+                    id: replyToMessage.id,
+                    sender_id: replyToMessage.sender_id,
+                    sender_name: replyToMessage.sender_name,
+                    content: replyToMessage.content,
+                    status: replyToMessage.status,
+                    type: replyToMessage.type,
+                } : null
             });
         } else {
             history.confirmOptimisticMessage(clientMessageId, {
@@ -53,52 +87,125 @@ export const useChat = (user) => {
         try {
             const serverMsg = await chatApi.sendMessage({
                 client_message_id: clientMessageId,
-                content
+                content: content || '',
+                type,
+                file,
+                reply_to_id: replyToMessage ? replyToMessage.id : undefined
+            }, (progress) => {
+                if (history.updateMessage) {
+                    history.updateMessage(clientMessageId, { uploadProgress: progress });
+                }
             });
             history.confirmOptimisticMessage(clientMessageId, serverMsg);
         } catch (error) {
             console.error("Failed to send message", error);
             history.markMessageError(clientMessageId);
+            toast.error("Failed to send message.");
         }
     };
 
-    // NEW: The complete end-to-end Edit Pipeline
     const editMessage = async (message, newContent) => {
         if (!newContent.trim() || newContent === message.content) return;
-
         const previousContent = message.content;
         const messageId = message.id || message.client_message_id;
 
-        // 1. Optimistic Update: Instantly change the UI to feel lightning fast
+        if (history.updateMessage) {
+            history.updateMessage(messageId, { content: newContent, is_edited: true, status: 'pending' });
+            toast.error("Failed to edit message.");
+        }
+
+        try {
+            const updatedServerMsg = await chatApi.editMessage(messageId, newContent);
+            if (history.updateMessage) history.updateMessage(messageId, updatedServerMsg);
+        } catch (error) {
+            console.error("Failed to edit message", error);
+            if (history.updateMessage) history.updateMessage(messageId, { content: previousContent, status: 'error' });
+        }
+    };
+
+    const deleteMessage = async (message) => {
+        const messageId = message.id || message.client_message_id;
+        const previousStatus = message.status;
+
+        if (history.updateMessage) history.updateMessage(messageId, { status: 'DELETED' });
+
+        try {
+            const deletedServerMsg = await chatApi.deleteMessage(messageId);
+            if (history.updateMessage) history.updateMessage(messageId, deletedServerMsg);
+            toast.success("Message deleted.");
+        } catch (error) {
+            console.error("Failed to delete message", error);
+            if (history.updateMessage) history.updateMessage(messageId, { status: previousStatus });
+            toast.error("Failed to delete message.");
+        }
+    };
+
+    const toggleReaction = async (message, emoji) => {
+        if (message.status === 'pending' || message.status === 'DELETED') return;
+
+        const messageId = message.id || message.client_message_id;
+        const previousReactions = [...(message.reactions || [])];
+
+        let newReactions = [...previousReactions];
+        const existingIndex = newReactions.findIndex(r => r.user_id === user.id);
+
+        if (existingIndex >= 0) {
+            if (newReactions[existingIndex].emoji === emoji) {
+                newReactions.splice(existingIndex, 1);
+            } else {
+                newReactions[existingIndex] = { ...newReactions[existingIndex], emoji };
+            }
+        } else {
+            newReactions.push({ user_id: user.id, sender_name: user.display_name, emoji });
+        }
+
+        if (history.updateMessage) history.updateMessage(messageId, { reactions: newReactions });
+
+        try {
+            const updatedServerMsg = await chatApi.toggleReaction(messageId, emoji);
+            if (history.updateMessage) history.updateMessage(messageId, updatedServerMsg);
+        } catch (error) {
+            console.error("Failed to toggle reaction", error);
+            if (history.updateMessage) history.updateMessage(messageId, { reactions: previousReactions });
+        }
+    };
+
+    const deleteMessageForMe = async (message) => {
+        const messageId = message.id || message.client_message_id;
+
+        // Prevent duplicate requests
+        if (message.__deletingForMe) return;
+
         if (history.updateMessage) {
             history.updateMessage(messageId, {
-                content: newContent,
-                is_edited: true,
-                status: 'pending'
+                __deletingForMe: true
             });
         }
 
         try {
-            // 2. Network Request
-            const updatedServerMsg = await chatApi.editMessage(messageId, newContent);
+            // Wait until backend confirms deletion
+            await chatApi.deleteMessageForMe(messageId);
 
-            // 3. Confirm Update: Replace with authoritative server data
-            if (history.updateMessage) {
-                history.updateMessage(messageId, updatedServerMsg);
+            // Remove only after success
+            if (history.removeMessage) {
+                history.removeMessage(messageId);
             }
-        } catch (error) {
-            console.error("Failed to edit message", error);
 
-            // 4. Rollback: Revert to previous content on failure
+            // ❌ DO NOT call loadInitialMessages() here.
+            // The backend already succeeded.
+            // The next normal socket/polling sync will keep everything consistent.
+
+        } catch (error) {
+            console.error("Failed to delete message for me", error);
+
+            // Remove temporary flag
             if (history.updateMessage) {
                 history.updateMessage(messageId, {
-                    content: previousContent,
-                    status: 'error'
+                    __deletingForMe: false
                 });
             }
         }
     };
 
-    // RETURN INCLUDES editMessage
-    return { ...history, ...socket, sendMessage, editMessage };
+    return { ...history, ...socket, sendMessage, editMessage, deleteMessage, toggleReaction, deleteMessageForMe };
 };

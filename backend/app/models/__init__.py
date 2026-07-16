@@ -7,3 +7,5 @@ from .space_member import SpaceMember
 from .message import Message
 from .message_attachment import MessageAttachment
 from .message_receipt import MessageReceipt
+from .message_reaction import MessageReaction
+from .hidden_message import HiddenMessage

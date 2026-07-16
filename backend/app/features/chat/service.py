@@ -1,7 +1,10 @@
 import logging
+import uuid
 from datetime import datetime, timezone, timedelta
+from werkzeug.utils import secure_filename
 from sqlalchemy.exc import IntegrityError
 from app.models.message import Message
+from app.models.message_attachment import MessageAttachment
 from app.features.chat.constants import (
     MessageType, MessageStatus, MAX_MESSAGE_LENGTH, EDIT_WINDOW_MINUTES, DELETED_MESSAGE_TEXT
 )
@@ -13,6 +16,8 @@ from app.features.chat.exceptions import (
     InvalidMessageException,
     EditWindowExpiredException
 )
+from app.models.message_reaction import MessageReaction
+from app.utils.storage import upload_file
 
 logger = logging.getLogger(__name__)
 
@@ -50,7 +55,7 @@ class ChatService:
 
     # --- PUBLIC API ---
 
-    def send_message(self, user_id, payload):
+    def send_message(self, user_id, payload, file=None):
         space_id = self._verify_space_membership(user_id)
         client_message_id = payload.get('client_message_id')
         
@@ -61,12 +66,14 @@ class ChatService:
         existing_msg = self.repository.get_message_by_client_message_id(client_message_id)
         if existing_msg:
             logger.info("Idempotent message send bypassed", extra={"client_message_id": client_message_id})
-            return ChatSchema.dump_message(existing_msg), False  # False = Not newly created
+            return ChatSchema.dump_message(existing_msg), False
 
         content = payload.get('content', '')
-        if not content or not content.strip():
+        
+        # Require either text content or a file payload
+        if not file and (not content or not content.strip()):
             raise InvalidMessageException("Message content cannot be empty.")
-        if len(content) > MAX_MESSAGE_LENGTH:
+        if content and len(content) > MAX_MESSAGE_LENGTH:
             raise InvalidMessageException("Message exceeds maximum length.")
 
         msg_type = payload.get('type', MessageType.TEXT.value)
@@ -85,27 +92,61 @@ class ChatService:
             sender_id=user_id,
             type=MessageType(msg_type),
             status=MessageStatus.NORMAL,
-            content=content.strip(),
+            content=content.strip() if content else None,
             reply_to_id=reply_to_id
         )
         
         try:
             created_msg = self.repository.create_message(new_message)
+            
+            # --- ATTACHMENT HANDLING ---
+            if file:
+                filename = secure_filename(file.filename)
+                ext = filename.rsplit('.', 1)[1].lower() if '.' in filename else 'bin'
+                storage_path = f"chat/{space_id}/{uuid.uuid4()}.{ext}"
+                
+                # Fetch file size cleanly from the pointer
+                file.seek(0, 2)
+                file_size = file.tell()
+                file.seek(0)
+                
+                # Upload to Supabase Storage
+                storage_key = upload_file(file, storage_path)
+                
+                attachment = MessageAttachment(
+                    message_id=created_msg.id,
+                    storage_key=storage_key,
+                    file_name=filename,          # <-- Add this
+                    mime_type=file.content_type,
+                    file_size=file_size,
+                    width=None,
+                    height=None,
+                    duration=None,
+                    thumbnail_url=None
+                )
+                self.session.add(attachment)
+
             self.session.commit()
+            self.session.refresh(created_msg)
             logger.info("Message created", extra={
                 "user_id": str(user_id), "space_id": str(space_id), "message_id": str(created_msg.id)
             })
-            return ChatSchema.dump_message(created_msg), True  # True = Newly created
+            return ChatSchema.dump_message(created_msg), True
+            
         except IntegrityError:
             self.session.rollback()
             existing_msg = self.repository.get_message_by_client_message_id(client_message_id)
             if existing_msg:
                 return ChatSchema.dump_message(existing_msg), False
             raise
+        except Exception as e:
+            # Safely rollback the message row if file upload fails
+            self.session.rollback()
+            raise
 
     def get_messages(self, user_id, before_message_id=None, limit=50):
         space_id = self._verify_space_membership(user_id)
-        messages = self.repository.get_messages_before(space_id, before_message_id, limit)
+        messages = self.repository.get_messages_before(space_id, user_id, before_message_id, limit)
         return ChatSchema.dump_message_list(messages[::-1])
 
     def edit_message(self, user_id, message_id, new_content):
@@ -147,6 +188,22 @@ class ChatService:
             self.session.rollback()
             raise
 
+    def delete_message_for_me(self, user_id, message_id):
+        space_id = self._verify_space_membership(user_id)
+        
+        message = self.repository.get_message_by_id(message_id)
+        if not message:
+            raise MessageNotFoundException("Message not found.")
+            
+        if str(message.space_id) != str(space_id):
+            raise UnauthorizedChatActionException("Not authorized to modify messages in this space.")
+
+        self.repository.hide_message_for_user(user_id, message_id)
+        self.session.commit()
+        
+        logger.info("Message deleted for me", extra={"message_id": str(message_id), "user_id": str(user_id)})
+        return {"success": True, "message_id": message_id}
+
     def get_unread_summary(self, user_id):
         space_id = self._verify_space_membership(user_id)
         count = self.repository.get_unread_count(space_id, user_id)
@@ -165,8 +222,6 @@ class ChatService:
         if current_receipt and current_receipt.last_read_message_id:
             old_msg = self.repository.get_message_by_id(current_receipt.last_read_message_id)
             if old_msg:
-                # TODO(TechDebt): UUID comparison is used as a deterministic tie-breaker for 
-                # identically timestamped messages. See repository.get_messages_before for details.
                 is_newer = (new_msg.created_at > old_msg.created_at) or \
                            (new_msg.created_at == old_msg.created_at and str(new_msg.id) > str(old_msg.id))
                 
@@ -177,3 +232,38 @@ class ChatService:
                         "user_id": str(user_id), 
                         "last_read_message_id": str(current_receipt.last_read_message_id)
                     }
+                    
+        try:
+            self.repository.upsert_receipt(space_id, user_id, {
+                "last_read_message_id": message_id,
+                "read_at": datetime.now(timezone.utc)
+            })
+            self.session.commit()
+            return {
+                "space_id": str(space_id),
+                "user_id": str(user_id),
+                "last_read_message_id": str(message_id)
+            }
+        except Exception:
+            self.session.rollback()
+            raise
+
+    def toggle_reaction(self, user_id, message_id, emoji):
+        message = self.repository.get_message_by_id(message_id)
+        
+        if not message or (hasattr(message.status, 'name') and message.status.name == 'DELETED') or message.status == 'DELETED':
+            raise InvalidMessageException("Cannot react to this message.")
+
+        existing = next((r for r in message.reactions if str(r.user_id) == str(user_id)), None)
+
+        if existing:
+            if existing.emoji == emoji:
+                self.session.delete(existing)
+            else:
+                existing.emoji = emoji
+        else:
+            new_reaction = MessageReaction(message_id=message_id, user_id=user_id, emoji=emoji)
+            self.session.add(new_reaction)
+
+        self.session.commit()
+        return ChatSchema.dump_message(message)

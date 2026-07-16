@@ -15,7 +15,6 @@ service = ChatService(repository, db.session)
 
 @chat_bp.errorhandler(ChatException)
 def handle_chat_exception(e):
-    # Route determines HTTP mapping
     error_mapping = {
         'MessageNotFoundException': 404,
         'UnauthorizedChatActionException': 403,
@@ -31,9 +30,30 @@ def handle_chat_exception(e):
 @chat_bp.route('/messages', methods=['POST'])
 @require_auth
 def send_message():
-    data = request.get_json()
+    # --- TEMPORARY DEBUG LOGGING ---
+    print("is_json:", request.is_json)
+    print("form:", request.form)
+    print("files:", request.files)
+    # -------------------------------
 
-    message_dto, is_created = service.send_message(g.current_user.id, data)
+    # Handle both JSON (text only) and Form-Data (media)
+    if request.is_json:
+        payload = request.get_json()
+        file = None
+    else:
+        payload = request.form.to_dict()
+        file = request.files.get('file')
+
+    try:
+        message_dto, is_created = service.send_message(
+            g.current_user.id,
+            payload,
+            file
+        )
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        raise
 
     if is_created:
         socketio.emit(
@@ -42,7 +62,6 @@ def send_message():
             room=str(message_dto["space_id"]),
             namespace="/"
         )
-
         print("Broadcasted to room:", message_dto["space_id"])
 
     status_code = 201 if is_created else 200
@@ -64,36 +83,61 @@ def edit_message(message_id):
     new_content = payload.get("content")
 
     try:
-        dto = service.edit_message(
-            g.current_user.id,
-            message_id,
-            new_content
-        )
-
-        socketio.emit(
-            "message_updated",
-            dto,
-            room=str(dto["space_id"])
-        )
-
+        dto = service.edit_message(g.current_user.id, message_id, new_content)
+        socketio.emit("message_updated", dto, room=str(dto["space_id"]))
         return jsonify(dto), 200
-
     except Exception as e:
         import traceback
         traceback.print_exc()
-        return jsonify({
-            "error": type(e).__name__,
-            "message": str(e)
-        }), 400
+        return jsonify({"error": type(e).__name__, "message": str(e)}), 400
 
-@chat_bp.route('/messages/<message_id>', methods=['DELETE'])
+@chat_bp.route("/messages/<message_id>", methods=["DELETE"])
 @require_auth
 def delete_message(message_id):
-    message_dto = service.soft_delete_message(g.current_user.id, message_id)
-    return jsonify(message_dto), 200
+    try:
+        service_local = ChatService(ChatRepository(db.session), db.session)
+        dto = service_local.soft_delete_message(g.current_user.id, message_id)
 
+        socketio.emit(
+            "message_deleted",
+            dto,
+            room=str(dto.get("space_id")),
+            namespace='/'
+        )
+        return jsonify(dto), 200
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({"error": type(e).__name__, "message": str(e)}), 400
+
+@chat_bp.route("/messages/<message_id>/me", methods=["DELETE"])
+@require_auth
+def delete_message_for_me(message_id):
+    try:
+        dto = service.delete_message_for_me(g.current_user.id, message_id)
+        return jsonify(dto), 200
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({"error": type(e).__name__, "message": str(e)}), 400
+    
 @chat_bp.route('/unread', methods=['GET'])
 @require_auth
 def get_unread():
     summary = service.get_unread_summary(g.current_user.id)
     return jsonify(summary), 200
+
+@chat_bp.route("/messages/<message_id>/reaction", methods=["POST"])
+@require_auth
+def toggle_reaction(message_id):
+    try:
+        payload = request.get_json()
+        emoji = payload.get("emoji")
+
+        dto = service.toggle_reaction(g.current_user.id, message_id, emoji)
+        socketio.emit("message_updated", dto, room=str(dto["space_id"]), namespace="/")
+        return jsonify(dto), 200
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({"error": type(e).__name__, "message": str(e)}), 500

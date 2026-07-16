@@ -1,15 +1,14 @@
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { EmojiPickerPopover } from './EmojiPickerPopover';
 
-// Anchors the menu beside the clicked message bubble (anchorRect = bubble's
-// getBoundingClientRect()) instead of raw cursor coordinates, and flips
-// horizontally/vertically if there isn't room on the preferred side.
-export const MessageContextMenu = ({ anchorRect, isMine, message, onClose, onAction }) => {
+const QUICK_EMOJIS = ['❤️', '😂', '🥰', '😭', '👍', '✨'];
+
+export const MessageContextMenu = ({ anchorRect, isMine, message, onClose, onAction, onToggleReaction }) => {
     const menuRef = useRef(null);
-    // Start hidden (opacity 0) until we've measured the menu's real size and
-    // can position it without an initial "flash" in the wrong spot.
     const [style, setStyle] = useState({ opacity: 0, top: 0, left: 0 });
 
-    // Close on click outside or escape key
+    const [showPicker, setShowPicker] = useState(false);
+
     useEffect(() => {
         const handleOutsideClick = (e) => {
             if (menuRef.current && !menuRef.current.contains(e.target)) onClose();
@@ -26,11 +25,6 @@ export const MessageContextMenu = ({ anchorRect, isMine, message, onClose, onAct
         };
     }, [onClose]);
 
-    // Measure the rendered menu, then position it flush against the bubble:
-    // to the right of partner bubbles / to the left of my own bubbles by
-    // default, flipping to whichever side actually has room. Vertically it
-    // aligns with the top of the bubble, flipping upward if it would overflow
-    // the bottom of the viewport.
     useLayoutEffect(() => {
         if (!menuRef.current || !anchorRect) return;
 
@@ -49,7 +43,6 @@ export const MessageContextMenu = ({ anchorRect, isMine, message, onClose, onAct
             left = preferRight ? anchorRect.left - menuRect.width - GAP : anchorRect.right + GAP;
         }
 
-        // Final safety clamp in case neither side fully fits (narrow viewports)
         left = Math.min(Math.max(left, PADDING), Math.max(PADDING, window.innerWidth - menuRect.width - PADDING));
 
         let top = anchorRect.top;
@@ -61,12 +54,45 @@ export const MessageContextMenu = ({ anchorRect, isMine, message, onClose, onAct
         setStyle({ top, left, opacity: 1 });
     }, [anchorRect, isMine]);
 
+    const handleReaction = (emoji) => {
+        onToggleReaction(message, emoji);
+        onClose();
+    };
+
     return (
         <div
             ref={menuRef}
-            className="fixed z-50 w-48 bg-white/95 backdrop-blur-md rounded-xl shadow-xl border border-slate-200/60 overflow-hidden animate-in fade-in zoom-in-95 duration-150 transition-opacity"
+            className={`fixed z-50 w-[310px] bg-white/95 backdrop-blur-md rounded-xl shadow-xl border border-slate-200/60 overflow-visible animate-in fade-in zoom-in-95 duration-150 transition-opacity`}
             style={style}
         >
+            {/* QUICK REACTIONS SECTION - Hidden if message is already deleted */}
+            {message.status !== 'DELETED' && (
+                <div className="relative flex items-center justify-between gap-1 px-3 py-2.5 bg-slate-50/50 border-b border-slate-100">
+                    {QUICK_EMOJIS.map(emoji => (
+                        <button
+                            key={emoji}
+                            onClick={() => handleReaction(emoji)}
+                            className="w-9 h-9 flex items-center justify-center bg-white rounded-full border border-slate-200 shadow-sm hover:scale-110 hover:bg-slate-50 transition-all text-lg focus:outline-none"
+                        >
+                            {emoji}
+                        </button>
+                    ))}
+                    <button
+                        onClick={() => setShowPicker(!showPicker)}
+                        className={`w-9 h-9 flex items-center justify-center rounded-full border border-slate-200 shadow-sm transition-all focus:outline-none ${showPicker ? 'bg-indigo-100 text-indigo-600 scale-110' : 'bg-white hover:scale-110 hover:bg-slate-50 text-slate-500'}`}
+                    >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 4v16m8-8H4" /></svg>
+                    </button>
+
+                    {showPicker && (
+                        <EmojiPickerPopover
+                            onSelect={handleReaction}
+                        />
+                    )}
+                </div>
+            )}
+
+            {/* ACTION ITEMS */}
             <div className="flex flex-col py-1">
                 {onAction('renderItems')}
             </div>

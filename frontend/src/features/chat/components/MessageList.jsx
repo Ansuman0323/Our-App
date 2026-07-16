@@ -6,7 +6,6 @@ import { MessageBottomSheet } from './MessageBottomSheet';
 import { MessageActionItem } from './MessageActionItem';
 import { MessageInfoModal } from './MessageInfoModal';
 
-// Helper to reliably check if two dates fall on the same local calendar day
 const isSameDay = (a, b) =>
     a.getFullYear() === b.getFullYear() &&
     a.getMonth() === b.getMonth() &&
@@ -14,27 +13,16 @@ const isSameDay = (a, b) =>
 
 const formatDateDivider = (date) => {
     const today = new Date();
-
-    // Normalize both dates to local midnight (00:00:00.000)
-    // This strips away the time component, isolating the calendar day.
     const midnightToday = new Date(today.getFullYear(), today.getMonth(), today.getDate());
     const midnightDate = new Date(date.getFullYear(), date.getMonth(), date.getDate());
-
-    // Calculate difference strictly based on the normalized calendar days
     const diffTime = midnightToday.getTime() - midnightDate.getTime();
-
-    // Math.round safely absorbs any fractional differences caused by Daylight Saving Time (DST) changes
     const diffCalendarDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
 
     if (diffCalendarDays === 0) return 'Today';
     if (diffCalendarDays === 1) return 'Yesterday';
-
-    // Previous 7 calendar days (2 to 6 days ago)
     if (diffCalendarDays > 1 && diffCalendarDays < 7) {
         return date.toLocaleDateString([], { weekday: 'long' });
     }
-
-    // Older than 6 days: Return standard date, showing year only if not current year
     return date.toLocaleDateString([], {
         month: 'long',
         day: 'numeric',
@@ -50,18 +38,27 @@ const DateDivider = ({ label }) => (
     </div>
 );
 
-export const MessageList = ({ messages, user, hasMore, isFetchingTop, onLoadMore, onRetryMessage, onEditMessage }) => {
+export const MessageList = ({
+    messages,
+    user,
+    hasMore,
+    isFetchingTop,
+    onLoadMore,
+    onRetryMessage,
+    onEditMessage,
+    onReplyMessage,
+    onDeleteMessage,
+    onDeleteMessageForMe,
+    onToggleReaction
+}) => {
     const { scrollRef, handleScroll } = useAutoScroll(messages, isFetchingTop);
     const [latestAnnounce, setLatestAnnounce] = useState('');
 
-    // --- ACTION SYSTEM STATE ---
     const [activeMessage, setActiveMessage] = useState(null);
-    // menuPosition now carries the clicked bubble's anchorRect (+ isMine),
-    // not raw cursor coordinates, so MessageContextMenu can position itself
-    // beside the bubble instead of at arbitrary viewport coordinates.
     const [menuPosition, setMenuPosition] = useState(null);
     const [isMobileMode, setIsMobileMode] = useState(false);
     const [infoMessage, setInfoMessage] = useState(null);
+    const [messageToDelete, setMessageToDelete] = useState(null);
 
     useEffect(() => {
         const latest = messages[messages.length - 1];
@@ -78,7 +75,8 @@ export const MessageList = ({ messages, user, hasMore, isFetchingTop, onLoadMore
     };
 
     const handleOpenActions = (msg, config) => {
-        if (msg.status === 'pending') return; // Don't allow actions on pending messages
+        // Prevent actions on pending messages only
+        if (msg.status === 'pending') return;
 
         setActiveMessage(msg);
         if (config.isTouch || window.innerWidth < 768) {
@@ -95,7 +93,6 @@ export const MessageList = ({ messages, user, hasMore, isFetchingTop, onLoadMore
         setMenuPosition(null);
     };
 
-    // Action Dispatcher
     const executeAction = (actionType) => {
         if (!activeMessage) return;
 
@@ -105,7 +102,6 @@ export const MessageList = ({ messages, user, hasMore, isFetchingTop, onLoadMore
                 if (navigator.clipboard && navigator.clipboard.writeText) {
                     navigator.clipboard.writeText(text);
                 } else {
-                    // Graceful fallback for older browsers
                     const textArea = document.createElement("textarea");
                     textArea.value = text;
                     document.body.appendChild(textArea);
@@ -118,24 +114,61 @@ export const MessageList = ({ messages, user, hasMore, isFetchingTop, onLoadMore
                 setInfoMessage(activeMessage);
                 break;
             case 'reply':
-                console.log("TODO: Implement Reply", activeMessage.id);
+                onReplyMessage?.(activeMessage);
                 break;
             case 'edit':
-                // Hands off to the compose bar (MessageInput) via ChatPage,
-                // which owns the shared editingMessage state.
                 onEditMessage?.(activeMessage);
                 break;
             case 'delete':
-                console.log("TODO: Implement Delete", activeMessage.id);
+                setMessageToDelete(activeMessage);
+                break;
+            case 'delete_for_me':
+                // Instantly remove without opening the confirmation modal
+                onDeleteMessageForMe(activeMessage);
                 break;
         }
         handleCloseActions();
     };
 
-    // Render the action items identically for both Desktop and Mobile
+    const scrollToMessage = (msgId) => {
+        const el = document.getElementById(`message-${msgId}`);
+        if (el) {
+            el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            const bubble = el.querySelector('[data-bubble-content="true"]');
+            if (bubble) {
+                bubble.classList.add('ring-4', 'ring-yellow-400', 'bg-yellow-100', 'transition-all', 'duration-500');
+                setTimeout(() => {
+                    bubble.classList.remove('ring-4', 'ring-yellow-400', 'bg-yellow-100');
+                }, 1200);
+            }
+        }
+    };
+
     const renderActionItems = () => {
         const isMine = activeMessage?.sender_id === user?.id;
+        const isDeleted = activeMessage?.status === 'DELETED';
 
+        // NEW: Return a strictly reduced menu for deleted placeholders
+        if (isDeleted) {
+            return (
+                <>
+                    <MessageActionItem
+                        label="Message Info"
+                        icon={<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10" /><line x1="12" y1="16" x2="12" y2="12" /><line x1="12" y1="8" x2="12.01" y2="8" /></svg>}
+                        onClick={() => executeAction('info')}
+                    />
+                    <div className="my-1 border-b border-slate-100" />
+                    <MessageActionItem
+                        label="Delete for Me"
+                        variant="danger"
+                        icon={<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="3 6 5 6 21 6" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /><line x1="10" y1="11" x2="10" y2="17" /><line x1="14" y1="11" x2="14" y2="17" /></svg>}
+                        onClick={() => executeAction('delete_for_me')}
+                    />
+                </>
+            );
+        }
+
+        // Normal Menu
         return (
             <>
                 <MessageActionItem
@@ -162,24 +195,23 @@ export const MessageList = ({ messages, user, hasMore, isFetchingTop, onLoadMore
                             icon={<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" /><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" /></svg>}
                             onClick={() => executeAction('edit')}
                         />
-                        <MessageActionItem
-                            label="Delete"
-                            variant="danger"
-                            icon={<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="3 6 5 6 21 6" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /><line x1="10" y1="11" x2="10" y2="17" /><line x1="14" y1="11" x2="14" y2="17" /></svg>}
-                            onClick={() => executeAction('delete')}
-                        />
                     </>
                 )}
+
+                <MessageActionItem
+                    label="Delete"
+                    variant="danger"
+                    icon={<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="3 6 5 6 21 6" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /><line x1="10" y1="11" x2="10" y2="17" /><line x1="14" y1="11" x2="14" y2="17" /></svg>}
+                    onClick={() => executeAction('delete')}
+                />
             </>
         );
     };
 
     return (
         <>
-            {/* Visually hidden screen reader announcer */}
             <div aria-live="polite" className="sr-only">{latestAnnounce}</div>
 
-            {/* ACTION MENUS */}
             {activeMessage && !isMobileMode && menuPosition && (
                 <MessageContextMenu
                     anchorRect={menuPosition.anchorRect}
@@ -187,6 +219,7 @@ export const MessageList = ({ messages, user, hasMore, isFetchingTop, onLoadMore
                     message={activeMessage}
                     onClose={handleCloseActions}
                     onAction={(type) => type === 'renderItems' ? renderActionItems() : executeAction(type)}
+                    onToggleReaction={onToggleReaction}
                 />
             )}
 
@@ -195,6 +228,7 @@ export const MessageList = ({ messages, user, hasMore, isFetchingTop, onLoadMore
                     message={activeMessage}
                     onClose={handleCloseActions}
                     onAction={(type) => type === 'renderItems' ? renderActionItems() : executeAction(type)}
+                    onToggleReaction={onToggleReaction}
                 />
             )}
 
@@ -203,11 +237,9 @@ export const MessageList = ({ messages, user, hasMore, isFetchingTop, onLoadMore
                 onClose={() => setInfoMessage(null)}
             />
 
-            {/* MAIN SCROLL CONTAINER */}
             <div
                 ref={scrollRef}
                 onScroll={onScroll}
-                // min-h-0 is crucial here to force Flexbox to allow scrolling
                 className="flex-1 min-h-0 overflow-y-auto px-4 py-6 md:px-8 bg-transparent scroll-smooth focus:outline-none"
                 tabIndex={0}
             >
@@ -238,7 +270,6 @@ export const MessageList = ({ messages, user, hasMore, isFetchingTop, onLoadMore
                         const msgDate = new Date(msg.created_at);
                         const showDateDivider = !prevMsg || !isSameDay(msgDate, new Date(prevMsg.created_at));
 
-                        // Grouping logic: same sender, same calendar day, within 5 minutes
                         const isConsecutive = !showDateDivider && prevMsg &&
                             prevMsg.sender_id === msg.sender_id &&
                             (msgDate - new Date(prevMsg.created_at)) < 300000;
@@ -246,18 +277,64 @@ export const MessageList = ({ messages, user, hasMore, isFetchingTop, onLoadMore
                         return (
                             <React.Fragment key={msg.id || msg.client_message_id}>
                                 {showDateDivider && <DateDivider label={formatDateDivider(msgDate)} />}
-                                <MessageBubble
-                                    message={msg}
-                                    isMine={isMine}
-                                    isConsecutive={isConsecutive}
-                                    onRetry={() => onRetryMessage(msg.content, msg.client_message_id)}
-                                    onOpenActions={handleOpenActions}
-                                />
+                                <div id={`message-${msg.id || msg.client_message_id}`} className="w-full flex">
+                                    <MessageBubble
+                                        message={msg}
+                                        isMine={isMine}
+                                        isConsecutive={isConsecutive}
+                                        onRetry={() => onRetryMessage(msg.content, msg.client_message_id)}
+                                        onOpenActions={handleOpenActions}
+                                        onQuoteClick={scrollToMessage}
+                                        user={user}
+                                        onToggleReaction={onToggleReaction}
+                                    />
+                                </div>
                             </React.Fragment>
                         );
                     })
                 )}
             </div>
+
+            {messageToDelete && (
+                <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 animate-in fade-in duration-200">
+                    <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setMessageToDelete(null)} />
+                    <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm overflow-hidden z-10 animate-in zoom-in-95 duration-200">
+                        <div className="p-5 text-center pb-4">
+                            <h3 className="text-lg font-bold text-slate-800 mb-1">Delete Message?</h3>
+                            <p className="text-sm text-slate-500">
+                                {messageToDelete.sender_id === user?.id
+                                    ? "You can delete this message for yourself or for everyone."
+                                    : "This message will be deleted for you. Other chat members will still be able to see it."}
+                            </p>
+                        </div>
+                        <div className="flex flex-col border-t border-slate-100">
+
+                            {messageToDelete.sender_id === user?.id && (
+                                <button
+                                    onClick={() => { onDeleteMessage(messageToDelete); setMessageToDelete(null); }}
+                                    className="w-full py-3.5 text-sm font-bold text-red-600 hover:bg-red-50 transition-colors border-b border-slate-100"
+                                >
+                                    Delete for Everyone
+                                </button>
+                            )}
+
+                            <button
+                                onClick={() => { onDeleteMessageForMe(messageToDelete); setMessageToDelete(null); }}
+                                className="w-full py-3.5 text-sm font-bold text-red-600 hover:bg-red-50 transition-colors border-b border-slate-100"
+                            >
+                                Delete for Me
+                            </button>
+
+                            <button
+                                onClick={() => setMessageToDelete(null)}
+                                className="w-full py-3.5 text-sm font-semibold text-slate-600 hover:bg-slate-50 transition-colors"
+                            >
+                                Cancel
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </>
     );
 };

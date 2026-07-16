@@ -46,8 +46,10 @@ Our-App
 │   │   │   └── auth.py
 │   │   ├── models
 │   │   │   ├── __init__.py
+│   │   │   ├── hidden_message.py
 │   │   │   ├── message.py
 │   │   │   ├── message_attachment.py
+│   │   │   ├── message_reaction.py
 │   │   │   ├── message_receipt.py
 │   │   │   ├── mixins.py
 │   │   │   ├── profile.py
@@ -56,6 +58,7 @@ Our-App
 │   │   │   └── user.py
 │   │   ├── sockets
 │   │   └── utils
+│   │       └── storage.py
 │   ├── migrations
 │   │   ├── alembic.ini
 │   │   ├── env.py
@@ -64,8 +67,11 @@ Our-App
 │   │   └── versions
 │   │       ├── 003_final_core_refinement.py
 │   │       ├── 004_add_missing_unique_constraints.py
+│   │       ├── 37c1abf2464e_add_hidden_messages.py
 │   │       ├── 56922fa1a191_add_chat_module_models.py
+│   │       ├── 9a71d18249f1_add_file_name_to_message_attachments.py
 │   │       ├── 9b8d1cf81482_initial_schema.py
+│   │       ├── bac1aa88970b_add_message_reactions_table.py
 │   │       ├── d32418d486c2_refine_core_schema.py
 │   │       └── e2a0fca6fb78_refine_chat_schema_with_tz_indexes_and_.py
 │   ├── requirements.txt
@@ -119,7 +125,13 @@ Our-App
 │   │   │   │   ├── api.js
 │   │   │   │   ├── components
 │   │   │   │   │   ├── ChatHeader.jsx
+│   │   │   │   │   ├── EmojiPickerPopover.jsx
+│   │   │   │   │   ├── MediaRenderers.jsx
+│   │   │   │   │   ├── MessageActionItem.jsx
+│   │   │   │   │   ├── MessageBottomSheet.jsx
 │   │   │   │   │   ├── MessageBubble.jsx
+│   │   │   │   │   ├── MessageContextMenu.jsx
+│   │   │   │   │   ├── MessageInfoModal.jsx
 │   │   │   │   │   ├── MessageInput.jsx
 │   │   │   │   │   └── MessageList.jsx
 │   │   │   │   ├── hooks

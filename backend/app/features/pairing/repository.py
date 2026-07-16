@@ -55,3 +55,5 @@ class PairingRepository:
         """Adds a new space member to the session and flushes it."""
         self.session.add(member)
         self.session.flush()
+    
+    

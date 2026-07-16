@@ -14,7 +14,6 @@ class MessageStatus(str, Enum):
     DELETED = "DELETED"
     SYSTEM = "SYSTEM"
 
-# Business Rules
 MAX_MESSAGE_LENGTH = 2000
 EDIT_WINDOW_MINUTES = 15
 DELETED_MESSAGE_TEXT = "This message was deleted."

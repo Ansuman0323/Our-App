@@ -15,6 +15,9 @@ class MessageAttachment(db.Model):
     
     # Unique constraint ensures no duplicate file uploads and simplifies orphan cleanup
     storage_key = Column(String(255), unique=True, nullable=False)
+
+    file_name = Column(String(255), nullable=False)
+    
     mime_type = Column(String(100), nullable=False)
     
     # Changed to BigInteger for large video/audio support

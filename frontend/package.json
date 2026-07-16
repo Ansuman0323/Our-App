@@ -13,9 +13,11 @@
     "@supabase/supabase-js": "^2.110.2",
     "@tailwindcss/vite": "^4.3.2",
     "axios": "^1.18.1",
+    "emoji-picker-react": "^4.19.1",
     "framer-motion": "^12.42.2",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",
+    "react-hot-toast": "^2.6.0",
     "react-router-dom": "^7.18.1",
     "socket.io-client": "^4.8.3",
     "tailwindcss": "^4.3.2"

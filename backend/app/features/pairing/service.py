@@ -111,3 +111,17 @@ class PairingService:
             "status": "waiting",
             "invite_code": space.invite_code
         }
+    
+    def delete_message_for_me(self, user_id, message_id):
+        message = self.repository.get_message_by_id(message_id)
+        if not message:
+            raise ValidationError("Message not found.")
+            
+        # Ensure user is actually in this space before allowing them to hide it
+        membership = self.repository.get_space_membership(user_id)
+        if not membership or str(membership.space_id) != str(message.space_id):
+            raise UnauthorizedError("Not authorized to modify messages in this space.")
+
+        self.repository.hide_message_for_user(user_id, message_id)
+        self.session.commit()
+        return {"success": True, "message_id": message_id}
