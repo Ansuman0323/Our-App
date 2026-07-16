@@ -133,7 +133,8 @@ Our-App
 │   │   │   │   │   ├── MessageContextMenu.jsx
 │   │   │   │   │   ├── MessageInfoModal.jsx
 │   │   │   │   │   ├── MessageInput.jsx
-│   │   │   │   │   └── MessageList.jsx
+│   │   │   │   │   ├── MessageList.jsx
+│   │   │   │   │   └── PdfViewerModal.jsx
 │   │   │   │   ├── hooks
 │   │   │   │   │   ├── useAutoScroll.js
 │   │   │   │   │   ├── useChat.js
@@ -143,6 +144,7 @@ Our-App
 │   │   │   │   │   └── ChatPage.jsx
 │   │   │   │   ├── services
 │   │   │   │   └── utils
+│   │   │   │       └── FileDownloadHandler.js
 │   │   │   ├── dashboard
 │   │   │   │   ├── api.js
 │   │   │   │   ├── components

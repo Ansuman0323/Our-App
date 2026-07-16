@@ -1,4 +1,4 @@
-import { useCallback, useEffect } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useMessageHistory } from './useMessageHistory';
 import { useChatSocket } from './useChatSocket';
 import { chatApi } from '../api';
@@ -6,13 +6,36 @@ import { toast } from 'react-hot-toast';
 
 export const useChat = (user) => {
     const history = useMessageHistory();
+    const [partnerReceipt, setPartnerReceipt] = useState(null);
+
+    const fetchPartnerReceipt = useCallback(async () => {
+        try {
+            const receipt = await chatApi.getReceipts();
+            setPartnerReceipt(receipt ?? null);
+        } catch (error) {
+            console.error("Failed to fetch partner receipt", error);
+        }
+    }, []);
+
+    // Hydrate on mount so ticks are correct before any socket event arrives (refresh-safe).
+    useEffect(() => {
+        if (!user?.id) return;
+        fetchPartnerReceipt();
+    }, [user?.id, fetchPartnerReceipt]);
 
     const handleReceiptUpdated = useCallback((receiptDto) => {
-    }, []);
+        // Defensive filter: only ever treat this as the PARTNER's cursor, regardless
+        // of which include_self setting the emitting socket handler used.
+        if (!receiptDto || receiptDto.user_id === user?.id) return;
+        setPartnerReceipt(receiptDto);
+    }, [user?.id]);
 
     const handleReconnectSync = useCallback(() => {
         history.loadInitialMessages(true);
-    }, [history]);
+        // Safety net: re-hydrate the receipt cursor in case a 'receipt_updated'
+        // event was missed while disconnected.
+        fetchPartnerReceipt();
+    }, [history, fetchPartnerReceipt]);
 
     const socket = useChatSocket(
         history.handleIncomingMessage,
@@ -38,7 +61,9 @@ export const useChat = (user) => {
         file = null,
         type = 'TEXT'
     ) => {
-        if (!content.trim() && !file) return;
+        const text = content ?? "";
+
+        if (!text.trim() && !file) return;
 
         if (existingTempId) {
             const existingMsg = history.messages.find(m => m.client_message_id === existingTempId);
@@ -51,7 +76,7 @@ export const useChat = (user) => {
             history.addOptimisticMessage({
                 id: clientMessageId,
                 client_message_id: clientMessageId,
-                content: content || '',
+                content: text,
                 type: type,
                 sender_id: user.id,
                 status: 'pending',
@@ -87,7 +112,7 @@ export const useChat = (user) => {
         try {
             const serverMsg = await chatApi.sendMessage({
                 client_message_id: clientMessageId,
-                content: content || '',
+                content: text,
                 type,
                 file,
                 reply_to_id: replyToMessage ? replyToMessage.id : undefined
@@ -111,7 +136,7 @@ export const useChat = (user) => {
 
         if (history.updateMessage) {
             history.updateMessage(messageId, { content: newContent, is_edited: true, status: 'pending' });
-            toast.error("Failed to edit message.");
+
         }
 
         try {
@@ -119,6 +144,7 @@ export const useChat = (user) => {
             if (history.updateMessage) history.updateMessage(messageId, updatedServerMsg);
         } catch (error) {
             console.error("Failed to edit message", error);
+            toast.error("Failed to edit message.");
             if (history.updateMessage) history.updateMessage(messageId, { content: previousContent, status: 'error' });
         }
     };
@@ -207,5 +233,5 @@ export const useChat = (user) => {
         }
     };
 
-    return { ...history, ...socket, sendMessage, editMessage, deleteMessage, toggleReaction, deleteMessageForMe };
+    return { ...history, ...socket, partnerReceipt, sendMessage, editMessage, deleteMessage, toggleReaction, deleteMessageForMe };
 };

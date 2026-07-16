@@ -117,3 +117,4 @@ def join_space():
         db.session.rollback()
         logger.error(f"Error joining space: {str(e)}")
         return jsonify({"error": str(e)}), 400
+    

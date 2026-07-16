@@ -227,26 +227,133 @@ class ChatService:
                 
                 if not is_newer:
                     logger.info("Ignored stale read receipt", extra={"user_id": str(user_id), "stale_message_id": str(message_id)})
-                    return {
-                        "space_id": str(space_id), 
-                        "user_id": str(user_id), 
-                        "last_read_message_id": str(current_receipt.last_read_message_id)
-                    }
-                    
+                    return ChatSchema.dump_receipt(current_receipt, kind="read")
+
+        # A read implies delivery. Advance the delivered cursor too, but only
+        # forward — never regress it if it's already ahead of this message.
+        now = datetime.now(timezone.utc)
+        updates = {
+            "last_read_message_id": message_id,
+            "read_at": now
+        }
+        delivered_needs_bump = True
+        if current_receipt and current_receipt.last_delivered_message_id:
+            delivered_msg = self.repository.get_message_by_id(current_receipt.last_delivered_message_id)
+            if delivered_msg:
+                delivered_needs_bump = (new_msg.created_at > delivered_msg.created_at) or \
+                    (new_msg.created_at == delivered_msg.created_at and str(new_msg.id) > str(delivered_msg.id))
+        if delivered_needs_bump:
+            updates["last_delivered_message_id"] = message_id
+            updates["delivered_at"] = now
+
         try:
-            self.repository.upsert_receipt(space_id, user_id, {
-                "last_read_message_id": message_id,
-                "read_at": datetime.now(timezone.utc)
-            })
+            self.repository.upsert_receipt(space_id, user_id, updates)
             self.session.commit()
-            return {
-                "space_id": str(space_id),
-                "user_id": str(user_id),
-                "last_read_message_id": str(message_id)
-            }
+            receipt = self.repository.get_receipt(space_id, user_id)
+            logger.info("Message marked read", extra={"user_id": str(user_id), "message_id": str(message_id)})
+            return ChatSchema.dump_receipt(receipt, kind="read")
         except Exception:
             self.session.rollback()
             raise
+
+    def mark_delivered_bulk(self, user_id):
+        """Called on socket connect. Catches this user's delivery cursor up to
+        the latest message in the space. Returns None (no-op) if already caught up,
+        so the caller knows not to emit a redundant socket event."""
+        space_id = self._verify_space_membership(user_id)
+        latest_id = self.repository.get_latest_message_id(space_id)
+        if not latest_id:
+            return None
+
+        current_receipt = self.repository.get_receipt(space_id, user_id)
+
+        # Nothing to update if we're already at the latest message
+        if current_receipt and current_receipt.last_delivered_message_id:
+            current_msg = self.repository.get_message_by_id(
+                current_receipt.last_delivered_message_id
+            )
+            latest_msg = self.repository.get_message_by_id(latest_id)
+
+            if current_msg and latest_msg:
+                is_newer = (
+                    latest_msg.created_at > current_msg.created_at
+                ) or (
+                    latest_msg.created_at == current_msg.created_at
+                    and str(latest_msg.id) > str(current_msg.id)
+                )
+
+                if not is_newer:
+                    return None
+
+        now = datetime.now(timezone.utc)
+
+        try:
+            self.repository.upsert_receipt(space_id, user_id, {
+                "last_delivered_message_id": latest_id,
+                "delivered_at": now
+            })
+            self.session.commit()
+            receipt = self.repository.get_receipt(space_id, user_id)
+            logger.info("Delivery cursor caught up on reconnect", extra={"user_id": str(user_id), "space_id": str(space_id)})
+            return ChatSchema.dump_receipt(receipt, kind="delivered")
+        except Exception:
+            self.session.rollback()
+            raise
+
+    def mark_delivered_for_message(self, recipient_id, message_id):
+        """Called right after a message is created, when the recipient is already
+        online, so delivery is instant instead of waiting for their next reconnect."""
+        membership = self.repository.get_space_membership(recipient_id)
+        if not membership:
+            return None
+        space_id = membership.space_id
+        new_msg = self.repository.get_message_by_id(message_id)
+        if not new_msg:
+            return None
+
+        current_receipt = self.repository.get_receipt(space_id, recipient_id)
+
+        if current_receipt and current_receipt.last_delivered_message_id:
+            current_msg = self.repository.get_message_by_id(
+                current_receipt.last_delivered_message_id
+            )
+
+            if current_msg:
+                is_newer = (
+                    new_msg.created_at > current_msg.created_at
+                ) or (
+                    new_msg.created_at == current_msg.created_at
+                    and str(new_msg.id) > str(current_msg.id)
+                )
+
+                if not is_newer:
+                    return None
+
+        now = datetime.now(timezone.utc)
+
+        try:
+            self.repository.upsert_receipt(space_id, recipient_id, {
+                "last_delivered_message_id": message_id,
+                "delivered_at": now
+            })
+            self.session.commit()
+            receipt = self.repository.get_receipt(space_id, recipient_id)
+            return ChatSchema.dump_receipt(receipt, kind="delivered")
+        except Exception:
+            self.session.rollback()
+            raise
+
+    def get_partner_receipt(self, user_id):
+        """REST hydration for page refresh: returns the partner's receipt cursor
+        so the client can paint correct ticks before any socket event arrives."""
+        space_id = self._verify_space_membership(user_id)
+        partner = self.repository.get_partner_membership(space_id, user_id)
+        if not partner:
+            return None
+        receipt = self.repository.get_receipt(space_id, partner.user_id)
+        if not receipt:
+            return None
+        return ChatSchema.dump_receipt(receipt)
 
     def toggle_reaction(self, user_id, message_id, emoji):
         message = self.repository.get_message_by_id(message_id)

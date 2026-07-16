@@ -9,6 +9,11 @@ export const chatApi = {
         return response.data;
     },
 
+    getReceipts: async () => {
+        const response = await api.get(`/chat/receipts`);
+        return response.data; // may be null if the partner has no receipt yet
+    },
+
     sendMessage: async (data, onProgress) => {
         // 1. If there's a file, send as multipart/form-data
         if (data.file) {

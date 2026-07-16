@@ -127,6 +127,17 @@ def get_unread():
     summary = service.get_unread_summary(g.current_user.id)
     return jsonify(summary), 200
 
+@chat_bp.route("/receipts", methods=["GET"])
+@require_auth
+def get_receipts():
+    try:
+        receipt = service.get_partner_receipt(g.current_user.id)
+        return jsonify(receipt), 200
+    except Exception:
+        import traceback
+        traceback.print_exc()
+        raise
+
 @chat_bp.route("/messages/<message_id>/reaction", methods=["POST"])
 @require_auth
 def toggle_reaction(message_id):

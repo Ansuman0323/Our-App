@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { MessageBubble } from './MessageBubble';
 import { useAutoScroll } from '../hooks/useAutoScroll';
 import { MessageContextMenu } from './MessageContextMenu';
@@ -49,7 +49,9 @@ export const MessageList = ({
     onReplyMessage,
     onDeleteMessage,
     onDeleteMessageForMe,
-    onToggleReaction
+    onToggleReaction,
+    partnerReceipt,
+    onMarkRead
 }) => {
     const { scrollRef, handleScroll } = useAutoScroll(messages, isFetchingTop);
     const [latestAnnounce, setLatestAnnounce] = useState('');
@@ -60,10 +62,125 @@ export const MessageList = ({
     const [infoMessage, setInfoMessage] = useState(null);
     const [messageToDelete, setMessageToDelete] = useState(null);
 
+    // --- READ RECEIPT TICK STATE ---
+    // Maps message id -> its index in the (chronologically ascending) messages array,
+    // so we can compare "did the partner's cursor pass this message" cheaply.
+    const messageIndexMap = useMemo(() => {
+        const map = new Map();
+        messages.forEach((m, i) => { if (m.id) map.set(m.id, i); });
+        return map;
+    }, [messages]);
+
+    const receiptCursor = useMemo(() => {
+        if (!partnerReceipt) return null;
+        return {
+            hasRead: !!partnerReceipt.last_read_message_id,
+            hasDelivered: !!partnerReceipt.last_delivered_message_id,
+            readIdx: partnerReceipt.last_read_message_id ? messageIndexMap.get(partnerReceipt.last_read_message_id) : undefined,
+            deliveredIdx: partnerReceipt.last_delivered_message_id ? messageIndexMap.get(partnerReceipt.last_delivered_message_id) : undefined,
+        };
+    }, [partnerReceipt, messageIndexMap]);
+
+    // NOTE: if the cursor's target message isn't in the currently loaded window,
+    // we treat it as covering everything loaded rather than leaving ticks stuck grey.
+    // The loaded window is always the most recent tail of the conversation, so in
+    // practice the cursor is virtually always resolvable; this is just a safe fallback.
+    const getDeliveryState = useCallback((index) => {
+        if (!receiptCursor) return 'sent';
+        const isRead = receiptCursor.hasRead && (receiptCursor.readIdx === undefined || index <= receiptCursor.readIdx);
+        if (isRead) return 'read';
+        const isDelivered = receiptCursor.hasDelivered && (receiptCursor.deliveredIdx === undefined || index <= receiptCursor.deliveredIdx);
+        if (isDelivered) return 'delivered';
+        return 'sent';
+    }, [receiptCursor]);
+
+    // --- READ RECEIPT: VIEWPORT DETECTION ---
+    // Tracks which partner messages are actually scrolled into view, and marks the
+    // newest one read — but only while the tab is focused/visible (rule 2).
+    const visibleIdsRef = useRef(new Set());
+    const lastMarkedReadRef = useRef(null);
+    const markReadDebounceRef = useRef(null);
+
+    const attemptMarkRead = useCallback(() => {
+        if (document.visibilityState !== 'visible' || !onMarkRead) return;
+
+        let newestId = null;
+        let newestIndex = -1;
+        visibleIdsRef.current.forEach((id) => {
+            const idx = messageIndexMap.get(id);
+            if (idx === undefined) return;
+            const msg = messages[idx];
+            if (
+                !msg ||
+                msg.sender_id === user?.id ||
+                msg.status === "pending" ||
+                msg.status === "DELETED"
+            ) {
+                return;
+            }
+            if (idx > newestIndex) {
+                newestIndex = idx;
+                newestId = msg.id;
+            }
+        });
+
+        if (newestId && newestId !== lastMarkedReadRef.current) {
+            lastMarkedReadRef.current = newestId;
+            onMarkRead(newestId);
+        }
+    }, [messages, messageIndexMap, user?.id, onMarkRead]);
+
+    useEffect(() => {
+        const container = scrollRef.current;
+        if (!container) return;
+
+        const observer = new IntersectionObserver((entries) => {
+            let changed = false;
+            entries.forEach((entry) => {
+                const id = entry.target.getAttribute('data-message-id');
+                if (!id) return;
+                if (entry.isIntersecting) {
+                    if (!visibleIdsRef.current.has(id)) changed = true;
+                    visibleIdsRef.current.add(id);
+                } else if (visibleIdsRef.current.has(id)) {
+                    changed = true;
+                    visibleIdsRef.current.delete(id);
+                }
+            });
+            if (changed) {
+                if (markReadDebounceRef.current) clearTimeout(markReadDebounceRef.current);
+                markReadDebounceRef.current = setTimeout(attemptMarkRead, 400);
+            }
+        }, { root: container, threshold: 0.5 });
+
+        container.querySelectorAll('[data-message-id]').forEach((el) => observer.observe(el));
+
+        return () => {
+            observer.disconnect();
+            if (markReadDebounceRef.current) clearTimeout(markReadDebounceRef.current);
+        };
+    }, [messages, attemptMarkRead]);
+
+    // Re-check when the tab regains focus/visibility, in case messages were
+    // already in view while it was backgrounded.
+    useEffect(() => {
+        document.addEventListener('visibilitychange', attemptMarkRead);
+        window.addEventListener('focus', attemptMarkRead);
+        return () => {
+            document.removeEventListener('visibilitychange', attemptMarkRead);
+            window.removeEventListener('focus', attemptMarkRead);
+        };
+    }, [attemptMarkRead]);
+
     useEffect(() => {
         const latest = messages[messages.length - 1];
         if (latest && latest.sender_id !== user?.id && latest.status !== 'pending') {
-            setLatestAnnounce(`New message: ${latest.content}`);
+            const label =
+                latest.content ||
+                latest.attachment?.file_name ||
+                "Media message";
+
+            setLatestAnnounce(`New message: ${label}`);
         }
     }, [messages, user?.id]);
 
@@ -277,11 +394,12 @@ export const MessageList = ({
                         return (
                             <React.Fragment key={msg.id || msg.client_message_id}>
                                 {showDateDivider && <DateDivider label={formatDateDivider(msgDate)} />}
-                                <div id={`message-${msg.id || msg.client_message_id}`} className="w-full flex">
+                                <div id={`message-${msg.id || msg.client_message_id}`} data-message-id={msg.id} className="w-full flex">
                                     <MessageBubble
                                         message={msg}
                                         isMine={isMine}
                                         isConsecutive={isConsecutive}
+                                        deliveryState={isMine ? getDeliveryState(index) : undefined}
                                         onRetry={() => onRetryMessage(msg.content, msg.client_message_id)}
                                         onOpenActions={handleOpenActions}
                                         onQuoteClick={scrollToMessage}

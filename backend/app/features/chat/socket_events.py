@@ -1,8 +1,7 @@
 import logging
-import time
 from functools import wraps
-from flask import request, current_app
-from flask_socketio import emit, join_room, leave_room, disconnect
+from flask import request
+from flask_socketio import emit, join_room, leave_room
 from app.extensions import socketio, db
 from app.features.chat.repository import ChatRepository
 from app.features.chat.service import ChatService
@@ -11,6 +10,7 @@ from app.features.chat.presence import PresenceManager
 from app.middleware.auth import verify_supabase_token
 from app.models.user import User
 from app.models.space_member import SpaceMember
+from flask import session
 
 logger = logging.getLogger(__name__)
 presence_manager = PresenceManager()
@@ -74,16 +74,16 @@ def handle_connect(auth):
     active_space = user.space_membership.space_id
     
     # 1 & 2. Authenticate and Join Room (Restoring vital request context)
-    request.user_id = str(user.id)
-    request.room_name = str(active_space)
-    join_room(request.room_name)
+    session["user_id"] = str(user.id)
+    session["room_name"] = str(active_space)
+    join_room(session["room_name"])
     
     # 3. Register connection in PresenceManager
-    is_newly_online = presence_manager.add_connection(request.user_id, request.sid)
+    is_newly_online = presence_manager.add_connection(session["user_id"], request.sid)
     
     # 4. Notify existing users that this user is online
     if is_newly_online:
-        emit('presence_changed', {'user_id': request.user_id, 'status': 'online'}, room=request.room_name, include_self=False)
+        emit('presence_changed', {'user_id': session["user_id"], 'status': 'online'}, room=session["room_name"], include_self=False)
         
     # 5. Immediately determine whether the partner is already online
     partner = SpaceMember.query.filter(
@@ -95,16 +95,29 @@ def handle_connect(auth):
     if partner and presence_manager.is_online(partner.user_id):
         emit('presence_changed', {'user_id': str(partner.user_id), 'status': 'online'}, to=request.sid)
 
+    # 7. Catch this user's delivery cursor up to the latest message in the space.
+    # mark_delivered_bulk is a no-op (returns None) if already caught up, so this
+    # is safe to run on every connect/reconnect without duplicate emits.
+    try:
+        service = get_chat_service()
+        receipt_dto = service.mark_delivered_bulk(user.id)
+        if receipt_dto:
+            # Only the partner (the original sender of those messages) needs this —
+            # it tells their client to flip ✓ -> ✓✓ for messages sent to this user.
+            emit('receipt_updated', receipt_dto, room=session["room_name"], include_self=False)
+    except Exception:
+        logger.error("Failed to catch up delivery cursor on connect", exc_info=True)
+
 @socketio.on('disconnect')
 def handle_disconnect():
     if hasattr(request, 'user_id'):
-        is_completely_offline = presence_manager.remove_connection(request.user_id, request.sid)
-        leave_room(request.room_name)
+        is_completely_offline = presence_manager.remove_connection(session["user_id"], request.sid)
+        leave_room(session["room_name"])
         
         if is_completely_offline:
-            emit('presence_changed', {'user_id': request.user_id, 'status': 'offline'}, room=request.room_name)
+            emit('presence_changed', {'user_id': session["user_id"], 'status': 'offline'}, room=session["room_name"])
             
-        logger.info("Socket disconnected", extra={"user_id": request.user_id, "sid": request.sid})
+        logger.info("Socket disconnected", extra={"user_id": session["user_id"], "sid": request.sid})
 
 # ==========================================
 # MESSAGE FLOW
@@ -115,11 +128,24 @@ def handle_disconnect():
 def handle_send_message(payload):
     print("SEND_MESSAGE EVENT RECEIVED")
     service = get_chat_service()
-    dto, is_created = service.send_message(request.user_id, payload)
+    dto, is_created = service.send_message(session["user_id"], payload)
     
     if is_created:
         # Broadcast newly created message to room
-        emit('receive_message', dto, room=request.room_name, include_self=False)
+        emit('receive_message', dto, room=session["room_name"], include_self=False)
+
+        # If the recipient is already connected, mark it delivered immediately
+        # instead of waiting for their next reconnect to catch up.
+        partner = service.repository.get_partner_membership(
+            session["room_name"],
+            session["user_id"]
+        )
+        if partner and presence_manager.is_online(str(partner.user_id)):
+            receipt_dto = service.mark_delivered_for_message(partner.user_id, dto['id'])
+            if receipt_dto:
+                # Self (the sender) needs this to flip their own message's tick,
+                # so this one is NOT include_self=False.
+                emit('receipt_updated', receipt_dto, room=session["room_name"])
         
     return {"status": "success", "data": dto}
 
@@ -130,8 +156,8 @@ def handle_edit_message(payload):
     message_id = payload.get('message_id')
     new_content = payload.get('content')
     
-    dto = service.edit_message(request.user_id, message_id, new_content)
-    emit('message_updated', dto, room=request.room_name, include_self=False)
+    dto = service.edit_message(session["user_id"], message_id, new_content)
+    emit('message_updated', dto, room=session["room_name"], include_self=False)
     
     return {"status": "success", "data": dto}
 
@@ -141,8 +167,8 @@ def handle_delete_message(payload):
     service = get_chat_service()
     message_id = payload.get('message_id')
     
-    dto = service.soft_delete_message(request.user_id, message_id)
-    emit('message_updated', dto, room=request.room_name, include_self=False)
+    dto = service.soft_delete_message(session["user_id"], message_id)
+    emit('message_updated', dto, room=session["room_name"], include_self=False)
     
     return {"status": "success", "data": dto}
 
@@ -156,8 +182,15 @@ def handle_mark_read(payload):
     service = get_chat_service()
     message_id = payload.get('message_id')
     
-    receipt_dto = service.mark_message_read(request.user_id, message_id)
-    emit('receipt_updated', receipt_dto, room=request.room_name, include_self=False)
+    receipt_dto = service.mark_message_read(session["user_id"], message_id)
+    if receipt_dto:
+        emit(
+            'receipt_updated',
+            receipt_dto,
+            room=session["room_name"],
+            include_self=False
+        )
+
     
     return {"status": "success", "data": receipt_dto}
 
@@ -165,10 +198,10 @@ def handle_mark_read(payload):
 def handle_typing_start():
     if hasattr(request, 'room_name'):
         if presence_manager.can_emit_typing(request.sid):
-            emit('typing_start', {'user_id': request.user_id}, room=request.room_name, include_self=False)
+            emit('typing_start', {'user_id': session["user_id"]}, room=session["room_name"], include_self=False)
 
 @socketio.on('typing_stop')
 def handle_typing_stop():
     if hasattr(request, 'room_name'):
         presence_manager.reset_typing(request.sid)
-        emit('typing_stop', {'user_id': request.user_id}, room=request.room_name, include_self=False)
+        emit('typing_stop', {'user_id': session["user_id"]}, room=session["room_name"], include_self=False)

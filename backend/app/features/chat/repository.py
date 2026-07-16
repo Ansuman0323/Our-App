@@ -10,6 +10,7 @@ from app.models.message import Message
 from app.models.message_receipt import MessageReceipt
 from app.models.space_member import SpaceMember
 from app.models.hidden_message import HiddenMessage
+from sqlalchemy import select
 
 class ChatRepository:
     def __init__(self, db_session):
@@ -17,6 +18,20 @@ class ChatRepository:
 
     def get_space_membership(self, user_id):
         return self.session.query(SpaceMember).filter_by(user_id=user_id).first()
+
+    def get_partner_membership(self, space_id, user_id):
+        # Returns the OTHER member of a (2-person) space, or None if the user is alone.
+        return self.session.query(SpaceMember).filter(
+            SpaceMember.space_id == space_id,
+            SpaceMember.user_id != user_id
+        ).first()
+
+    def get_latest_message_id(self, space_id):
+        # Lightweight lookup (no eager loads) used to bulk-catch-up a delivery cursor on reconnect.
+        row = self.session.query(Message.id).filter(
+            Message.space_id == space_id
+        ).order_by(Message.created_at.desc(), Message.id.desc()).first()
+        return row[0] if row else None
 
     def create_message(self, message):
         self.session.add(message)
@@ -45,13 +60,15 @@ class ChatRepository:
 
     def get_messages_before(self, space_id, user_id, before_message_id=None, limit=50):
         # 1. Subquery to find all message IDs hidden by this specific user
-        hidden_sq = self.session.query(HiddenMessage.message_id).filter_by(user_id=user_id).subquery()
+        hidden_sq = select(HiddenMessage.message_id).where(
+            HiddenMessage.user_id == user_id
+        )
         
         # 2. Main query excluding hidden messages
         query = self.session.query(Message).filter(
-            Message.space_id == space_id,
-            Message.id.not_in(hidden_sq)
-        )
+    Message.space_id == space_id,
+    Message.id.not_in(hidden_sq)
+)
         
         # ADDED: Eager load the sender and the replied-to message + its sender to prevent N+1 queries
         query = query.options(
@@ -93,20 +110,30 @@ class ChatRepository:
         receipt = self.session.query(MessageReceipt).filter_by(space_id=space_id, user_id=user_id).first()
         
         # Base query to count unread messages, excluding those the user has hidden
-        hidden_sq = self.session.query(HiddenMessage.message_id).filter_by(user_id=user_id).subquery()
-        base_query = self.session.query(Message).filter(
-            Message.space_id == space_id,
-            Message.id.not_in(hidden_sq)
+        hidden_sq = select(HiddenMessage.message_id).where(
+            HiddenMessage.user_id == user_id
         )
+        base_query = self.session.query(Message).filter(
+    Message.space_id == space_id,
+    Message.id.not_in(hidden_sq)
+)
         
         if not receipt or not receipt.last_read_message_id:
             return base_query.count()
             
         last_read_msg = self.session.query(Message).filter_by(id=receipt.last_read_message_id).first()
         if not last_read_msg:
-            return 0
+            return base_query.count()
             
-        return base_query.filter(Message.created_at > last_read_msg.created_at).count()
+        return base_query.filter(
+            or_(
+                Message.created_at > last_read_msg.created_at,
+                and_(
+                    Message.created_at == last_read_msg.created_at,
+                    Message.id > last_read_msg.id
+                )
+            )
+        ).count()
 
     def get_receipt(self, space_id, user_id):
         return self.session.query(MessageReceipt).filter_by(space_id=space_id, user_id=user_id).first()

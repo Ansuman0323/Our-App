@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useAuth } from '../../../contexts/AuthContext';
 import { useChat } from '../hooks/useChat';
 import { MessageList } from '../components/MessageList';
@@ -12,14 +12,19 @@ export const ChatPage = () => {
     const {
         messages, isLoading, loadInitialMessages, loadMoreMessages, hasMore, isFetchingTop,
         sendMessage, editMessage, deleteMessage, deleteMessageForMe, toggleReaction, // <-- Added deleteMessageForMe
-        partnerStatus, isPartnerTyping, emitTypingStart, emitTypingStop
+        partnerStatus, isPartnerTyping, emitTypingStart, emitTypingStop, emitMarkRead, partnerReceipt
     } = useChat(dbUser);
 
     // ACTION STATES
     const [editingMessage, setEditingMessage] = useState(null);
     const [replyingToMessage, setReplyingToMessage] = useState(null);
 
+    const initialLoadDone = useRef(false);
+
     useEffect(() => {
+        if (initialLoadDone.current) return;
+
+        initialLoadDone.current = true;
         loadInitialMessages();
     }, [loadInitialMessages]);
 
@@ -85,6 +90,8 @@ export const ChatPage = () => {
                     onDeleteMessage={deleteMessage} // NEW
                     onToggleReaction={toggleReaction}
                     onDeleteMessageForMe={deleteMessageForMe}
+                    partnerReceipt={partnerReceipt}
+                    onMarkRead={emitMarkRead}
                 />
 
                 <MessageInput

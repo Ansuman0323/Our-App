@@ -59,3 +59,30 @@ class ChatSchema:
     @staticmethod
     def dump_message_list(messages):
         return [ChatSchema.dump_message(msg) for msg in messages if msg]
+
+    @staticmethod
+    def dump_receipt(receipt, kind=None):
+        if not receipt:
+            return None
+
+        return {
+            "user_id": str(receipt.user_id),
+            "space_id": str(receipt.space_id),
+            "last_delivered_message_id": (
+                str(receipt.last_delivered_message_id)
+                if receipt.last_delivered_message_id else None
+            ),
+            "last_read_message_id": (
+                str(receipt.last_read_message_id)
+                if receipt.last_read_message_id else None
+            ),
+            "delivered_at": (
+                receipt.delivered_at.replace(tzinfo=timezone.utc).isoformat()
+                if receipt.delivered_at else None
+            ),
+            "read_at": (
+                receipt.read_at.replace(tzinfo=timezone.utc).isoformat()
+                if receipt.read_at else None
+            ),
+            "kind": kind
+        }
