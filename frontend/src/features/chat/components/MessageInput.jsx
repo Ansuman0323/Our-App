@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect, useLayoutEffect } from 'react';
 import { toast } from 'react-hot-toast'; // 1. IMPORT TOAST
 import { EmojiPickerPopover } from './EmojiPickerPopover';
 import { AttachmentPreview } from './MediaRenderers';
+import { EmojiGifPicker } from './EmojiGifPicker';
 
 const MAX_TEXTAREA_HEIGHT = 128; // px, ~6 lines before internal scroll
 const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50 MB
@@ -206,16 +207,28 @@ export const MessageInput = ({
                 </div>
             )}
 
-            {/* ATTACHMENT PREVIEW */}
-            {file && <AttachmentPreview file={file} onRemove={() => setFile(null)} />}
-
             {showPicker && (
-                <EmojiPickerPopover
-                    onSelect={handleEmojiSelect}
+                <EmojiGifPicker
                     isMobile={isMobile}
-                    className="absolute bottom-[calc(100%-8px)] mb-2 left-2 md:left-6 z-[60]"
+                    className="absolute bottom-[calc(100%-8px)] mb-2 left-2 md:left-6"
+
+                    // 1. Existing Emoji Handler
+                    onEmojiSelect={handleEmojiSelect}
+
+                    // 2. NEW: Immediate send handlers for Media
+                    onGifSelect={(gifData) => {
+                        onSend('', null, replyingToMessage, null, 'GIF', gifData);
+                        resetCompose();
+                    }}
+                    onStickerSelect={(stickerData) => {
+                        onSend('', null, replyingToMessage, null, 'STICKER', stickerData);
+                        resetCompose();
+                    }}
                 />
             )}
+
+            {/* ATTACHMENT PREVIEW */}
+            {file && <AttachmentPreview file={file} onRemove={() => setFile(null)} />}
 
             <form onSubmit={handleSubmit} className="relative flex items-end gap-2 md:gap-3 max-w-4xl mx-auto">
                 <div className="flex-1 flex items-end bg-slate-100 rounded-[1.75rem] px-2 py-1.5 border border-transparent focus-within:border-indigo-200 focus-within:bg-white focus-within:ring-4 focus-within:ring-indigo-500/10 transition-all duration-200 shadow-inner">

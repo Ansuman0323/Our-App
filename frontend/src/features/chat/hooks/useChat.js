@@ -24,9 +24,10 @@ export const useChat = (user) => {
     }, [user?.id, fetchPartnerReceipt]);
 
     const handleReceiptUpdated = useCallback((receiptDto) => {
-        // Defensive filter: only ever treat this as the PARTNER's cursor, regardless
-        // of which include_self setting the emitting socket handler used.
+        console.log("receipt_updated", receiptDto);
+
         if (!receiptDto || receiptDto.user_id === user?.id) return;
+
         setPartnerReceipt(receiptDto);
     }, [user?.id]);
 
@@ -59,11 +60,14 @@ export const useChat = (user) => {
         existingTempId = null,
         replyToMessage = null,
         file = null,
-        type = 'TEXT'
+        type = 'TEXT',
+        mediaData = null //NEW
     ) => {
         const text = content ?? "";
 
-        if (!text.trim() && !file) return;
+        if (!text.trim() && !file && !mediaData) {
+            return;
+        }
 
         if (existingTempId) {
             const existingMsg = history.messages.find(m => m.client_message_id === existingTempId);
@@ -91,6 +95,15 @@ export const useChat = (user) => {
                     mime_type: file.type,
                     file_size: file.size,
                     thumbnail_url: null
+                } : mediaData ? {
+                    storage_key: mediaData.url,
+                    url: mediaData.url,
+                    file_name: mediaData.title || (type === 'GIF' ? 'GIF' : 'Sticker'),
+                    mime_type: 'image/gif',
+                    file_size: 0,
+                    width: mediaData.width,
+                    height: mediaData.height,
+                    thumbnail_url: mediaData.previewUrl
                 } : null,
                 reactions: [],
                 reply: replyToMessage ? {
@@ -112,15 +125,23 @@ export const useChat = (user) => {
         try {
             const serverMsg = await chatApi.sendMessage({
                 client_message_id: clientMessageId,
-                content: text,
+                content: mediaData?.url ?? text,
                 type,
                 file,
-                reply_to_id: replyToMessage ? replyToMessage.id : undefined
+                reply_to_id: replyToMessage ? replyToMessage.id : undefined,
+                ...(mediaData ? {
+                    url: mediaData.url,
+                    previewUrl: mediaData.previewUrl,
+                    width: mediaData.width,
+                    height: mediaData.height,
+                    title: mediaData.title
+                } : {})
             }, (progress) => {
                 if (history.updateMessage) {
                     history.updateMessage(clientMessageId, { uploadProgress: progress });
                 }
             });
+            console.log("SERVER MESSAGE:", serverMsg);
             history.confirmOptimisticMessage(clientMessageId, serverMsg);
         } catch (error) {
             console.error("Failed to send message", error);

@@ -12,13 +12,17 @@ class ChatSchema:
         attachment_data = None
         if attachments and len(attachments) > 0:
             att = attachments[0]
+
+            # --- NEW: Bypass storage helper if the key is already a full GIPHY URL ---
+            resolved_url = att.storage_key if att.storage_key and att.storage_key.startswith('http') else get_public_url(att.storage_key)
+
             attachment_data = {
                 "storage_key": att.storage_key,
                 "file_name": getattr(att, "file_name", None),
-                "url": get_public_url(att.storage_key),
+                "url": resolved_url,
                 "mime_type": att.mime_type,
                 "file_size": getattr(att, "file_size", 0),
-                "thumbnail_url": getattr(att, "thumbnail_url", None)
+                "thumbnail_url": getattr(att, "thumbnail_url", None),
             }
             
         return {

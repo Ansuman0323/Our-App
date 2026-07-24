@@ -7,7 +7,9 @@ class MessageType(str, Enum):
     AUDIO = "AUDIO"
     FILE = "FILE"
     SYSTEM = "SYSTEM"
-
+    GIF = 'GIF'
+    STICKER = 'STICKER'
+    
 class MessageStatus(str, Enum):
     NORMAL = "NORMAL"
     EDITED = "EDITED"

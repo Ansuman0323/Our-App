@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
-import { io } from 'socket.io-client';
-import { supabase } from '../../../lib/supabase';
+import { socketService } from '../../../lib/socket';
 
 export const useChatSocket = (
     onReceiveMessage,
@@ -8,7 +7,6 @@ export const useChatSocket = (
     onReconnectSync,
     onMessageUpdated
 ) => {
-    const socketRef = useRef(null);
     const hasConnectedOnce = useRef(false);
 
     const [partnerStatus, setPartnerStatus] = useState('offline');
@@ -28,73 +26,74 @@ export const useChatSocket = (
 
     useEffect(() => {
         let isMounted = true;
+        let cleanupListeners = null;
 
-        const initSocket = async () => {
-            const { data: { session } } = await supabase.auth.getSession();
-            const token = session?.access_token;
+        const bindSocket = async () => {
+            // Retrieve the globally initialized socket
+            const socket = await socketService.connect();
+            if (!socket || !isMounted) return;
 
-            if (!token || !isMounted) return;
-
-            socketRef.current = io(import.meta.env.VITE_SOCKET_URL || 'http://localhost:5000', {
-                auth: { token },
-                // FIX: Removed `transports: ['websocket']`. 
-                // This allows Flask to use HTTP Polling on your local dev server!
-            });
-
-            const socket = socketRef.current;
-
-            socket.on('connect', () => {
-                console.log("Socket connected successfully!");
+            // Define handlers
+            const handleConnect = () => {
+                console.log("Chat component attached to global socket!");
                 if (hasConnectedOnce.current) {
                     onSyncRef.current();
                 }
                 hasConnectedOnce.current = true;
-            });
+            };
 
-            socket.on('receive_message', (dto) => {
+            const handleReceive = (dto) => {
                 console.log("New message received via socket:", dto);
-                if (onReceiveRef.current) onReceiveRef.current(dto);
-            });
+                onReceiveRef.current?.(dto);
+            };
+            const handleReceipt = (dto) => onReceiptRef.current?.(dto);
+            const handlePresence = (data) => setPartnerStatus(data.status);
+            const handleTypingStart = () => setIsPartnerTyping(true);
+            const handleTypingStop = () => setIsPartnerTyping(false);
+            const handleUpdate = (dto) => onUpdateRef.current?.(dto.id, dto);
+            const handleDelete = (dto) => onUpdateRef.current?.(dto.id, dto);
 
-            socket.on('receipt_updated', (dto) => {
-                if (onReceiptRef.current) onReceiptRef.current(dto);
-            });
+            // If the socket is already connected when navigating to Chat, trigger connect logic manually
+            if (socket.connected) {
+                handleConnect();
+            }
 
-            socket.on('presence_changed', (data) => setPartnerStatus(data.status));
-            socket.on('typing_start', () => setIsPartnerTyping(true));
-            socket.on('typing_stop', () => setIsPartnerTyping(false));
-            socket.on("connect_error", (err) => {
-                console.error("CONNECT ERROR");
-                console.error(err);
-                console.error("Message:", err.message);
-                console.error("Description:", err.description);
-                console.error("Context:", err.context);
-            });
-            socket.on("disconnect", (reason) => {
-                console.log("Disconnected:", reason);
-            });
-            socket.on("message_updated", dto => {
-                onUpdateRef.current?.(dto.id, dto);
-            });
+            // Bind listeners
+            socket.on('connect', handleConnect);
+            socket.on('receive_message', handleReceive);
+            socket.on('receipt_updated', handleReceipt);
+            socket.on('presence_changed', handlePresence);
+            socket.on('typing_start', handleTypingStart);
+            socket.on('typing_stop', handleTypingStop);
+            socket.on('message_updated', handleUpdate);
+            socket.on('message_deleted', handleDelete);
 
-            socket.on("message_deleted", dto => {
-                onUpdateRef.current?.(dto.id, dto);
-            });
+            // Prepare teardown function
+            cleanupListeners = () => {
+                socket.off('connect', handleConnect);
+                socket.off('receive_message', handleReceive);
+                socket.off('receipt_updated', handleReceipt);
+                socket.off('presence_changed', handlePresence);
+                socket.off('typing_start', handleTypingStart);
+                socket.off('typing_stop', handleTypingStop);
+                socket.off('message_updated', handleUpdate);
+                socket.off('message_deleted', handleDelete);
+            };
         };
 
-        initSocket();
+        bindSocket();
 
         return () => {
             isMounted = false;
-            if (socketRef.current) {
-                socketRef.current.disconnect();
-            }
+            // CRITICAL: We remove event listeners to prevent memory leaks/duplicates, 
+            // but we DO NOT disconnect the socket!
+            if (cleanupListeners) cleanupListeners();
         };
     }, []);
 
-    const emitTypingStart = useCallback(() => socketRef.current?.emit('typing_start'), []);
-    const emitTypingStop = useCallback(() => socketRef.current?.emit('typing_stop'), []);
-    const emitMarkRead = useCallback((messageId) => socketRef.current?.emit('mark_read', { message_id: messageId }), []);
+    const emitTypingStart = useCallback(() => socketService.getSocket()?.emit('typing_start'), []);
+    const emitTypingStop = useCallback(() => socketService.getSocket()?.emit('typing_stop'), []);
+    const emitMarkRead = useCallback((messageId) => socketService.getSocket()?.emit('mark_read', { message_id: messageId }), []);
 
     return { partnerStatus, isPartnerTyping, emitTypingStart, emitTypingStop, emitMarkRead };
 };

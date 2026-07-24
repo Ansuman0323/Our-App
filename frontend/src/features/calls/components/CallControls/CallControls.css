@@ -1,0 +1,67 @@
+.cc-controls {
+  position: absolute;
+  left: 50%;
+  bottom: max(1.5rem, env(safe-area-inset-bottom));
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: clamp(0.75rem, 3vw, 1.25rem);
+  padding: 0.6rem 0.9rem;
+  border-radius: 999px;
+  background: rgba(18, 20, 24, 0.55);
+  backdrop-filter: blur(10px);
+  z-index: 4;
+}
+
+.cc-button {
+  width: clamp(48px, 12vw, 56px);
+  height: clamp(48px, 12vw, 56px);
+  border-radius: 50%;
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.25rem;
+  cursor: pointer;
+  background: rgba(255, 255, 255, 0.14);
+  color: #f5f6f7;
+  transition: background 0.15s ease, transform 0.1s ease;
+}
+
+.cc-button:hover {
+  background: rgba(255, 255, 255, 0.24);
+}
+
+.cc-button:active {
+  transform: scale(0.94);
+}
+
+.cc-button:focus-visible {
+  outline: 2px solid #7fc8ff;
+  outline-offset: 2px;
+}
+
+.cc-button--danger {
+  background: #e0453b;
+}
+
+.cc-button--danger:hover {
+  background: #c93b32;
+}
+
+.cc-button[aria-pressed='true'] {
+  background: rgba(255, 255, 255, 0.32);
+}
+
+@media (max-width: 360px) {
+  .cc-controls {
+    gap: 0.6rem;
+    padding: 0.5rem 0.7rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cc-button {
+    transition: none;
+  }
+}

@@ -405,6 +405,7 @@ export const MessageList = ({
                                         onQuoteClick={scrollToMessage}
                                         user={user}
                                         onToggleReaction={onToggleReaction}
+                                        onSwipeToReply={onReplyMessage}
                                     />
                                 </div>
                             </React.Fragment>

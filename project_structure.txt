@@ -18,6 +18,12 @@ Our-App
 │   │   │   │   ├── routes.py
 │   │   │   │   ├── schema.py
 │   │   │   │   └── service.py
+│   │   │   ├── calls
+│   │   │   │   ├── __init__.py
+│   │   │   │   ├── config.py
+│   │   │   │   ├── services
+│   │   │   │   │   └── call_registry.py
+│   │   │   │   └── socket_events.py
 │   │   │   ├── chat
 │   │   │   │   ├── __init__.py
 │   │   │   │   ├── constants.py
@@ -67,6 +73,7 @@ Our-App
 │   │   └── versions
 │   │       ├── 003_final_core_refinement.py
 │   │       ├── 004_add_missing_unique_constraints.py
+│   │       ├── 2b45e7a21d49_add_gif_and_sticker_message_types.py
 │   │       ├── 37c1abf2464e_add_hidden_messages.py
 │   │       ├── 56922fa1a191_add_chat_module_models.py
 │   │       ├── 9a71d18249f1_add_file_name_to_message_attachments.py
@@ -121,10 +128,46 @@ Our-App
 │   │   │   │   ├── pages
 │   │   │   │   ├── services
 │   │   │   │   └── utils
+│   │   │   ├── calls
+│   │   │   │   ├── components
+│   │   │   │   │   ├── ActiveCallOverlay
+│   │   │   │   │   │   ├── ActiveCallOverlay.css
+│   │   │   │   │   │   └── ActiveCallOverlay.jsx
+│   │   │   │   │   ├── CallControls
+│   │   │   │   │   │   ├── CallControls.css
+│   │   │   │   │   │   └── CallControls.jsx
+│   │   │   │   │   ├── CallDuration
+│   │   │   │   │   │   └── CallDuration.jsx
+│   │   │   │   │   ├── ConnectionIndicator
+│   │   │   │   │   │   └── ConnectionIndicator.jsx
+│   │   │   │   │   ├── IncomingCallModal.css
+│   │   │   │   │   ├── IncomingCallModal.jsx
+│   │   │   │   │   ├── LocalVideo
+│   │   │   │   │   │   ├── LocalVideo.css
+│   │   │   │   │   │   └── LocalVideo.jsx
+│   │   │   │   │   └── RemoteVideo
+│   │   │   │   │       ├── RemoteVideo.css
+│   │   │   │   │       └── RemoteVideo.jsx
+│   │   │   │   ├── config
+│   │   │   │   │   └── calls.js
+│   │   │   │   ├── contexts
+│   │   │   │   │   ├── CallContext.jsx
+│   │   │   │   │   └── callReducer.js
+│   │   │   │   ├── hooks
+│   │   │   │   │   ├── __tests__
+│   │   │   │   │   │   └── useCallSocket.test.js
+│   │   │   │   │   └── useCallSocket.js
+│   │   │   │   ├── services
+│   │   │   │   │   └── callEngine.js
+│   │   │   │   └── utils
+│   │   │   │       ├── errorModel.js
+│   │   │   │       ├── fsm.js
+│   │   │   │       └── timerManager.js
 │   │   │   ├── chat
 │   │   │   │   ├── api.js
 │   │   │   │   ├── components
 │   │   │   │   │   ├── ChatHeader.jsx
+│   │   │   │   │   ├── EmojiGifPicker.jsx
 │   │   │   │   │   ├── EmojiPickerPopover.jsx
 │   │   │   │   │   ├── MediaRenderers.jsx
 │   │   │   │   │   ├── MessageActionItem.jsx
@@ -139,10 +182,12 @@ Our-App
 │   │   │   │   │   ├── useAutoScroll.js
 │   │   │   │   │   ├── useChat.js
 │   │   │   │   │   ├── useChatSocket.js
-│   │   │   │   │   └── useMessageHistory.js
+│   │   │   │   │   ├── useMessageHistory.js
+│   │   │   │   │   └── useSwipeReply.js
 │   │   │   │   ├── pages
 │   │   │   │   │   └── ChatPage.jsx
 │   │   │   │   ├── services
+│   │   │   │   │   └── giphyService.js
 │   │   │   │   └── utils
 │   │   │   │       └── FileDownloadHandler.js
 │   │   │   ├── dashboard

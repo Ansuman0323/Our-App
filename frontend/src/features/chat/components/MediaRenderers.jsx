@@ -422,6 +422,49 @@ export const AttachmentPreview = React.memo(({ file, onRemove }) => {
         </div>
     );
 });
+// =====================================================================================
+// GIF RENDERER
+// =====================================================================================
+export const GifMessage = React.memo(({ attachment, isDeleted, isPending, isError, onRetry }) => {
+    if (!attachment) return null;
+
+    return (
+        <div className={`relative overflow-hidden bg-slate-100 ${isDeleted ? 'opacity-50 grayscale pointer-events-none' : ''}`}>
+            <img
+                src={attachment.url}
+                alt={attachment.file_name || 'GIF'}
+                className="w-full h-auto max-h-[360px] object-cover"
+                loading="lazy"
+            />
+            <UploadStateOverlay isPending={isPending} isError={isError} progress={0} onRetry={onRetry} />
+
+            {/* Small GIF badge in the corner to distinguish from static images */}
+            <span className="absolute top-2 left-2 bg-black/40 backdrop-blur-sm text-white text-[9px] font-bold px-1.5 py-0.5 rounded shadow-sm border border-white/10 pointer-events-none">
+                GIF
+            </span>
+        </div>
+    );
+});
+
+// =====================================================================================
+// STICKER RENDERER
+// =====================================================================================
+export const StickerMessage = React.memo(({ attachment, isDeleted, isPending, isError, onRetry }) => {
+    if (!attachment) return null;
+
+    // Stickers have transparent backgrounds and max dimensions, they don't fill the bubble edge-to-edge
+    return (
+        <div className={`relative flex items-center justify-center p-2 ${isDeleted ? 'opacity-50 grayscale pointer-events-none' : ''}`}>
+            <img
+                src={attachment.url}
+                alt={attachment.file_name || 'Sticker'}
+                className="w-[140px] h-[140px] md:w-[160px] md:h-[160px] object-contain drop-shadow-md"
+                loading="lazy"
+            />
+            <UploadStateOverlay isPending={isPending} isError={isError} progress={0} onRetry={onRetry} />
+        </div>
+    );
+});
 
 // =====================================================================================
 // MAIN FACTORY ROUTER
@@ -434,6 +477,8 @@ export const MediaRenderer = React.memo(({ type, attachment, isDeleted, isPendin
     switch (type) {
         case 'IMAGE': return <ImageMessage {...commonProps} />;
         case 'VIDEO': return <VideoMessage {...commonProps} />;
+        case 'GIF': return <GifMessage {...commonProps} />;         // NEW
+        case 'STICKER': return <StickerMessage {...commonProps} />; // NEW
         case 'FILE':
         case 'DOCUMENT': return <DocumentMessage {...commonProps} />;
         default: return <DocumentMessage {...commonProps} />;

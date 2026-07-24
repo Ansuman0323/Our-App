@@ -2,6 +2,7 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { authApi } from '../features/auth/api';
 import { pairingApi } from '../features/pairing/api';
+import { socketService } from '../lib/socket'; // NEW: Import the global socket service
 
 const AuthContext = createContext({});
 
@@ -17,6 +18,7 @@ export const AuthProvider = ({ children }) => {
             setUser(session?.user ?? null);
 
             if (session?.user) {
+                socketService.connect(); // NEW: Connect globally on initial load
                 await fetchDbUser();
             } else {
                 setLoading(false);
@@ -30,6 +32,8 @@ export const AuthProvider = ({ children }) => {
 
             if (event === 'SIGNED_IN') {
                 try {
+                    socketService.connect(); // NEW: Connect globally on login
+
                     // Trigger sync immediately to ensure DB has this user
                     await authApi.syncUser({
                         email: session.user.email,
@@ -41,6 +45,8 @@ export const AuthProvider = ({ children }) => {
                     setLoading(false);
                 }
             } else if (event === 'SIGNED_OUT') {
+                socketService.disconnect(); // NEW: Teardown globally on logout
+
                 setDbUser(null);
                 setIsPaired(null);
                 setLoading(false);

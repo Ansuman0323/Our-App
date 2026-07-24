@@ -4,26 +4,24 @@ import { useChat } from '../hooks/useChat';
 import { MessageList } from '../components/MessageList';
 import { MessageInput } from '../components/MessageInput';
 import { ChatHeader } from '../components/ChatHeader';
+import { useCall } from '../../calls/contexts/CallContext';
 
 export const ChatPage = () => {
     const { dbUser } = useAuth();
+    const { startCall } = useCall();
 
-    // Destructure it from the hook
     const {
         messages, isLoading, loadInitialMessages, loadMoreMessages, hasMore, isFetchingTop,
-        sendMessage, editMessage, deleteMessage, deleteMessageForMe, toggleReaction, // <-- Added deleteMessageForMe
+        sendMessage, editMessage, deleteMessage, deleteMessageForMe, toggleReaction,
         partnerStatus, isPartnerTyping, emitTypingStart, emitTypingStop, emitMarkRead, partnerReceipt
     } = useChat(dbUser);
 
-    // ACTION STATES
     const [editingMessage, setEditingMessage] = useState(null);
     const [replyingToMessage, setReplyingToMessage] = useState(null);
-
     const initialLoadDone = useRef(false);
 
     useEffect(() => {
         if (initialLoadDone.current) return;
-
         initialLoadDone.current = true;
         loadInitialMessages();
     }, [loadInitialMessages]);
@@ -34,27 +32,20 @@ export const ChatPage = () => {
         return partnerMessage?.sender_name || 'Partner';
     }, [messages, dbUser]);
 
-    // HANDLERS
+    // DERIVE PARTNER ID
+    const partnerId = useMemo(() => {
+        if (!dbUser || !messages.length) return null;
+        const partnerMessage = messages.find(m => m.sender_id !== dbUser.id);
+        return partnerMessage?.sender_id || null;
+    }, [messages, dbUser]);
+
     const handleSaveEdit = async (msg, newContent) => {
         await editMessage(msg, newContent);
         setEditingMessage(null);
     };
 
-    const handleSendMessage = async (
-        content,
-        tempId,
-        replyingTo,
-        file,
-        type
-    ) => {
-        await sendMessage(
-            content,
-            tempId,
-            replyingTo,
-            file,
-            type
-        );
-
+    const handleSendMessage = async (content, tempId, replyingTo, file, type, mediaData) => {
+        await sendMessage(content, tempId, replyingTo, file, type, mediaData);
         setReplyingToMessage(null);
     };
 
@@ -76,6 +67,10 @@ export const ChatPage = () => {
                     partnerName={partnerName}
                     status={partnerStatus}
                     isTyping={isPartnerTyping}
+                    onStartCall={() => {
+                        if (partnerId) startCall(partnerId);
+                    }}
+                    canStartCall={!!partnerId}
                 />
 
                 <MessageList
@@ -87,7 +82,7 @@ export const ChatPage = () => {
                     onRetryMessage={sendMessage}
                     onEditMessage={setEditingMessage}
                     onReplyMessage={setReplyingToMessage}
-                    onDeleteMessage={deleteMessage} // NEW
+                    onDeleteMessage={deleteMessage}
                     onToggleReaction={toggleReaction}
                     onDeleteMessageForMe={deleteMessageForMe}
                     partnerReceipt={partnerReceipt}
@@ -98,11 +93,9 @@ export const ChatPage = () => {
                     onSend={handleSendMessage}
                     emitTypingStart={emitTypingStart}
                     emitTypingStop={emitTypingStop}
-
                     editingMessage={editingMessage}
                     onSaveEdit={handleSaveEdit}
                     onCancelEdit={() => setEditingMessage(null)}
-
                     replyingToMessage={replyingToMessage}
                     onCancelReply={() => setReplyingToMessage(null)}
                 />

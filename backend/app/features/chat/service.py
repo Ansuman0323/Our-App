@@ -78,6 +78,15 @@ class ChatService:
 
         msg_type = payload.get('type', MessageType.TEXT.value)
         
+        is_giphy = msg_type in [MessageType.GIF.value, MessageType.STICKER.value]
+
+        # Require either text content, a file payload, or a giphy payload
+        if not file and (not content or not content.strip()) and not is_giphy:
+            raise InvalidMessageException("Message content cannot be empty.")
+            
+        if content and len(content) > MAX_MESSAGE_LENGTH:
+            raise InvalidMessageException("Message exceeds maximum length.")
+        
         reply_to_id = payload.get('reply_to_id')
         if reply_to_id:
             reply_msg = self.repository.get_message_by_id(reply_to_id)
@@ -126,6 +135,20 @@ class ChatService:
                 )
                 self.session.add(attachment)
 
+            elif is_giphy:
+                # NEW: Construct attachment directly from GIPHY API payload
+                attachment = MessageAttachment(
+                    message_id=created_msg.id,
+                    storage_key=payload.get('url'),  # Save full URL here to bypass cloud storage
+                    file_name=payload.get('title', 'Media'),
+                    mime_type='image/gif',
+                    file_size=0,
+                    width=payload.get('width'),
+                    height=payload.get('height'),
+                    thumbnail_url=payload.get('previewUrl')
+                )
+                self.session.add(attachment)
+                
             self.session.commit()
             self.session.refresh(created_msg)
             logger.info("Message created", extra={

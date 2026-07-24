@@ -42,6 +42,7 @@ def register_blueprints(flask_app):
     flask_app.register_blueprint(chat_bp)
     with flask_app.app_context():
         import app.features.chat.socket_events
+        import app.features.calls.socket_events
               
 def register_error_handlers(flask_app):
     @flask_app.errorhandler(Exception)
