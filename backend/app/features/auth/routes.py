@@ -3,6 +3,7 @@ from .service import AuthService
 from .repository import AuthRepository
 from app.extensions import db
 from app.middleware.auth import require_auth
+import traceback
 
 auth_bp = Blueprint('auth', __name__)
 
@@ -28,7 +29,12 @@ def sync_user():
     except ValueError as e:
         return jsonify({"error": "Bad Request", "message": str(e)}), 400
     except Exception as e:
-        return jsonify({"error": "Internal Server Error", "message": "Failed to sync user"}), 500
+        traceback.print_exc()
+
+        return jsonify({
+            "error": str(e),
+            "type": type(e).__name__
+        }), 500
 
 @auth_bp.route('/me', methods=['GET'])
 @require_auth
