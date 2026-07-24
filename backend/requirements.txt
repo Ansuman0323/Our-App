@@ -7,3 +7,5 @@ PyJWT
 psycopg2-binary
 python-dotenv
 supabase
+gunicorn
+eventlet
