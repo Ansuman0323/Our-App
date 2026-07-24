@@ -1,7 +1,7 @@
 import os
 from flask import Flask
 from .extensions import db, migrate, socketio, cors
-
+from werkzeug.exceptions import HTTPException
 
 def create_app(config_name=None):
     flask_app = Flask(__name__)
@@ -97,7 +97,15 @@ def register_error_handlers(flask_app):
 
     @flask_app.errorhandler(Exception)
     def handle_exception(e):
-        print("Unhandled Exception:", e)
+
+        if isinstance(e, HTTPException):
+            return {
+                "error": e.name,
+                "message": e.description
+            }, e.code
+
+        import traceback
+        traceback.print_exc()
 
         return {
             "error": "Internal Server Error",
