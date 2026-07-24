@@ -6,6 +6,8 @@ import { Toaster } from 'react-hot-toast';
 import { CallProvider } from "./features/calls/contexts/CallContext";
 
 export default function App() {
+  console.log("API:", import.meta.env.VITE_API_URL);
+  console.log("SOCKET:", import.meta.env.VITE_SOCKET_URL);
   return (
     <AuthProvider>
       <CallProvider>
