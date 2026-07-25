@@ -161,35 +161,146 @@ def handle_call_reconcile(payload):
 # LIFECYCLE HANDLERS
 # ==========================================
 
-@socketio.on('call:start')
+@socketio.on("call:start")
 def handle_call_start(payload):
-    if not validate_base_payload(payload): return
+    if not validate_base_payload(payload):
+        logger.warning("[CALL] Invalid call:start payload")
+        return
 
     room = session.get("room_name")
     sender_id = session.get("user_id")
+    socket_sid = request.sid
+
     call_id = payload["call_id"]
-    session_id = payload.get("session_id") # Phase 3 Payload
+    session_id = payload.get("session_id")
+    callee_id = payload.get("callee_id")
 
-    if not room or not sender_id: return
-
-    # Phase 3: Explicitly bind the DOM session identity to the registry creation
-    call = registry.create_call(
-        call_id=call_id, 
-        caller_id=sender_id, 
-        room_name=room, 
-        caller_session_id=session_id, 
-        caller_sid=request.sid
-    )
-    
-    if not call:
-        emit('call:busy', {"call_id": call_id, "reason": "already_active"}, to=request.sid)
+    if not room or not sender_id:
+        logger.warning("[CALL] Missing room or sender_id")
         return
 
-    socketio.server.enter_room(request.sid, room)
-    relay_payload = {**payload, "sender_id": sender_id, "caller_id": sender_id}
-    log_call('start', call_id, sender_id, room, call.state.value)
-    emit('call:start', relay_payload, room=room, include_self=False)
+    logger.info(
+        f"""
+================ CALL START ================
+Caller        : {sender_id}
+Callee        : {callee_id}
+Call ID       : {call_id}
+Session ID    : {session_id}
+Socket SID    : {socket_sid}
+Room          : {room}
+Payload       : {payload}
+============================================
+"""
+    )
 
+    existing = registry.get_call(room)
+
+    if existing:
+        logger.warning(
+            f"""
+[CALL] Room already busy
+
+Existing Call : {existing.call_id}
+State         : {existing.state.value}
+Participants  : {list(existing.participants.keys())}
+"""
+        )
+
+        emit(
+            "call:busy",
+            {
+                "call_id": call_id,
+                "reason": "already_active"
+            },
+            to=socket_sid
+        )
+        return
+
+    call = registry.create_call(
+        call_id=call_id,
+        caller_id=sender_id,
+        room_name=room,
+        caller_session_id=session_id,
+        caller_sid=socket_sid,
+    )
+
+    if not call:
+        logger.error("[CALL] create_call() returned None unexpectedly")
+
+        emit(
+            "call:busy",
+            {
+                "call_id": call_id,
+                "reason": "already_active"
+            },
+            to=socket_sid
+        )
+        return
+
+    #
+    # PHASE 3
+    # Pre-register the callee so reconciliation works.
+    #
+    if callee_id:
+        registry.update_participant(
+            room_name=room,
+            user_id=callee_id,
+            session_id=None,
+            socket_sid=None,
+            role=ParticipantRole.CALLEE,
+            state=ParticipantState.JOINING,
+        )
+
+    #
+    # Ensure caller is inside the signaling room.
+    #
+    socketio.server.enter_room(socket_sid, room)
+
+    manager = socketio.server.manager
+
+    room_members = manager.rooms.get("/", {}).get(room, set())
+
+    logger.info(
+        f"""
+========== ROOM STATE ==========
+Room          : {room}
+Members       : {room_members}
+Participants  : {list(call.participants.keys())}
+================================
+"""
+    )
+
+    relay_payload = {
+        **payload,
+        "sender_id": sender_id,
+        "caller_id": sender_id,
+    }
+
+    log_call(
+        "start",
+        call.call_id,
+        sender_id,
+        room,
+        call.state.value,
+    )
+
+    emit(
+        "call:start",
+        relay_payload,
+        room=room,
+        include_self=False,
+    )
+
+    logger.info(
+        f"""
+========== BROADCAST ==========
+Event : call:start
+Room  : {room}
+Done
+===============================
+"""
+    )
+    
 @socketio.on('call:ringing')
 def handle_call_ringing(payload):
     relay_call_event('call:ringing', payload, validate_base_payload)

@@ -77,6 +77,17 @@ def handle_connect(auth):
     session["user_id"] = str(user.id)
     session["room_name"] = str(active_space)
     join_room(session["room_name"])
+
+    logger.info(
+    f"""
+===== SOCKET CONNECT =====
+User ID: {session['user_id']}
+SID: {request.sid}
+Room: {session['room_name']}
+Rooms: {socketio.server.rooms(request.sid)}
+==========================
+"""
+)
     
     # 3. Register connection in PresenceManager
     is_newly_online = presence_manager.add_connection(session["user_id"], request.sid)
