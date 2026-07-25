@@ -11,6 +11,7 @@ from app.middleware.auth import verify_supabase_token
 from app.models.user import User
 from app.models.space_member import SpaceMember
 from flask import session
+import os
 
 logger = logging.getLogger(__name__)
 presence_manager = PresenceManager()
@@ -63,6 +64,7 @@ def authenticate_socket(auth_payload):
 
 @socketio.on("connect")
 def handle_connect(auth):
+    logger.info(f"[CONNECT] User {session.get('user_id')} connected to Worker PID: {os.getpid()}")
     supabase_uid = authenticate_socket(auth)
     if not supabase_uid:
         return False

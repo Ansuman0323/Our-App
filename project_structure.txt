@@ -83,6 +83,7 @@ Our-App
 │   │       └── e2a0fca6fb78_refine_chat_schema_with_tz_indexes_and_.py
 │   ├── requirements.txt
 │   ├── run.py
+│   ├── runtime.txt
 │   ├── tests
 │   │   ├── auth
 │   │   ├── chat
@@ -92,6 +93,7 @@ Our-App
 │   ├── .env
 │   ├── .env.example
 │   ├── .gitignore
+│   ├── capacitor.config.json
 │   ├── eslint.config.js
 │   ├── index.html
 │   ├── package-lock.json
@@ -162,7 +164,8 @@ Our-App
 │   │   │   │   └── utils
 │   │   │   │       ├── errorModel.js
 │   │   │   │       ├── fsm.js
-│   │   │   │       └── timerManager.js
+│   │   │   │       ├── timerManager.js
+│   │   │   │       └── validation.js
 │   │   │   ├── chat
 │   │   │   │   ├── api.js
 │   │   │   │   ├── components

@@ -135,6 +135,13 @@ export const useCallSocket = () => {
 
             log('Initializing Socket Listeners');
 
+            // TEMP DEBUG
+            activeSocket.onAny((event, ...args) => {
+                console.log("[SOCKET EVENT]", event, args);
+            });// TEMP DEBUG
+            activeSocket.onAny((event, ...args) => {
+                console.log("[SOCKET EVENT]", event, args);
+            });
             const onConnect = () => {
                 log('Socket Connected');
                 // PHASE 3: Fire reconciliation immediately upon connection AND reconnection
@@ -182,6 +189,7 @@ export const useCallSocket = () => {
 
             // Store cleanup function in WeakMap to handle StrictMode double-mounts smoothly
             socketCleanups.set(activeSocket, () => {
+                activeSocket.offAny();
                 activeSocket.off('connect', onConnect);
                 activeSocket.off('disconnect', onDisconnect);
                 activeSocket.off('call:start', onCallStart);

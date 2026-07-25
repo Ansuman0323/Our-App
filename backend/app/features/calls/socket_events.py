@@ -2,8 +2,14 @@ import logging
 from flask import request, session
 from flask_socketio import emit
 from app.extensions import socketio
-from app.features.calls.services.call_registry import MemoryCallRegistry, CallState
+from app.features.calls.services.call_registry import (
+    MemoryCallRegistry,
+    CallState,
+    ParticipantRole,
+    ParticipantState,
+)
 from app.features.calls.config import DISCONNECT_GRACE_SECONDS
+import os
 
 logger = logging.getLogger(__name__)
 
@@ -163,6 +169,7 @@ def handle_call_reconcile(payload):
 
 @socketio.on("call:start")
 def handle_call_start(payload):
+    logger.info(f"[CALL START] Caller {session.get('user_id')} triggered start on Worker PID: {os.getpid()}")
     if not validate_base_payload(payload):
         logger.warning("[CALL] Invalid call:start payload")
         return
@@ -205,7 +212,9 @@ State         : {existing.state.value}
 Participants  : {list(existing.participants.keys())}
 """
         )
-
+        logger.info(f"Relay payload = {relay_payload}")
+        logger.info(f"Current SID = {request.sid}")
+        logger.info(f"Current room = {room}")
         emit(
             "call:busy",
             {
@@ -300,7 +309,7 @@ Done
 ===============================
 """
     )
-    
+
 @socketio.on('call:ringing')
 def handle_call_ringing(payload):
     relay_call_event('call:ringing', payload, validate_base_payload)
