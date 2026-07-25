@@ -64,7 +64,7 @@ export const useCallSocket = () => {
             log(`Emit Failed: Socket disconnected`, event);
             return;
         }
-
+        socket.emit("call:start", payload);
         log(`Emitting: ${event}`, payload);
 
         if (typeof ackCallback === 'function') {
@@ -83,6 +83,9 @@ export const useCallSocket = () => {
             call_id: payload.call_id || stateRef.current.callId
         });
     }, [safeEmit]);
+
+    console.log("EMITTING CALL START");
+    console.log(socket.listeners("call:start"));
 
     const emitStartCall = useCallback((p) => emitCallEvent('call:start', p), [emitCallEvent]);
     const emitAcceptCall = useCallback((p) => emitCallEvent('call:accept', p), [emitCallEvent]);

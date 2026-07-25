@@ -169,6 +169,9 @@ def handle_call_reconcile(payload):
 
 @socketio.on("call:start")
 def handle_call_start(payload):
+    print("########################")
+    print("CALL START RECEIVED")
+    print(payload)
     logger.info(f"[CALL START] Caller {session.get('user_id')} triggered start on Worker PID: {os.getpid()}")
     if not validate_base_payload(payload):
         logger.warning("[CALL] Invalid call:start payload")
