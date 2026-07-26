@@ -85,9 +85,6 @@ export const useCallSocket = () => {
         });
     }, [safeEmit]);
 
-    const socket = socketService.getSocket();
-    console.log("EMITTING CALL START");
-    console.log(socket.listeners("call:start"));
 
     const emitStartCall = useCallback((p) => emitCallEvent('call:start', p), [emitCallEvent]);
     const emitAcceptCall = useCallback((p) => emitCallEvent('call:accept', p), [emitCallEvent]);

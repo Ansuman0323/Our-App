@@ -64,62 +64,129 @@ def authenticate_socket(auth_payload):
 
 @socketio.on("connect")
 def handle_connect(auth):
-    logger.info(f"[CONNECT] User {session.get('user_id')} connected to Worker PID: {os.getpid()}")
-    supabase_uid = authenticate_socket(auth)
-    if not supabase_uid:
-        return False
+    logger.info("=" * 60)
+    logger.info(f"[SOCKET CONNECT] SID={request.sid} PID={os.getpid()}")
 
-    user = User.query.filter_by(supabase_uid=supabase_uid).first()
-    if not user or not user.space_membership:
-        return False
-
-    active_space = user.space_membership.space_id
-    
-    # 1 & 2. Authenticate and Join Room (Restoring vital request context)
-    session["user_id"] = str(user.id)
-    session["room_name"] = str(active_space)
-    join_room(session["room_name"])
-
-    logger.info(
-    f"""
-===== SOCKET CONNECT =====
-User ID: {session['user_id']}
-SID: {request.sid}
-Room: {session['room_name']}
-Rooms: {socketio.server.rooms(request.sid)}
-==========================
-"""
-)
-    
-    # 3. Register connection in PresenceManager
-    is_newly_online = presence_manager.add_connection(session["user_id"], request.sid)
-    
-    # 4. Notify existing users that this user is online
-    if is_newly_online:
-        emit('presence_changed', {'user_id': session["user_id"], 'status': 'online'}, room=session["room_name"], include_self=False)
-        
-    # 5. Immediately determine whether the partner is already online
-    partner = SpaceMember.query.filter(
-        SpaceMember.space_id == active_space, 
-        SpaceMember.user_id != user.id
-    ).first()
-    
-    # 6. Send the current partner status ONLY to the newly connected client
-    if partner and presence_manager.is_online(partner.user_id):
-        emit('presence_changed', {'user_id': str(partner.user_id), 'status': 'online'}, to=request.sid)
-
-    # 7. Catch this user's delivery cursor up to the latest message in the space.
-    # mark_delivered_bulk is a no-op (returns None) if already caught up, so this
-    # is safe to run on every connect/reconnect without duplicate emits.
     try:
-        service = get_chat_service()
-        receipt_dto = service.mark_delivered_bulk(user.id)
-        if receipt_dto:
-            # Only the partner (the original sender of those messages) needs this —
-            # it tells their client to flip ✓ -> ✓✓ for messages sent to this user.
-            emit('receipt_updated', receipt_dto, room=session["room_name"], include_self=False)
+        # ---------------------------------------------------------
+        # Authenticate Socket
+        # ---------------------------------------------------------
+        supabase_uid = authenticate_socket(auth)
+
+        if not supabase_uid:
+            logger.error("[SOCKET CONNECT] Authentication failed")
+            return False
+
+        logger.info(f"[SOCKET CONNECT] Authenticated Supabase UID: {supabase_uid}")
+
+        # ---------------------------------------------------------
+        # Load User
+        # ---------------------------------------------------------
+        user = User.query.filter_by(supabase_uid=supabase_uid).first()
+
+        if not user:
+            logger.error(f"[SOCKET CONNECT] User not found for UID: {supabase_uid}")
+            return False
+
+        logger.info(f"[SOCKET CONNECT] User found: {user.id}")
+
+        # ---------------------------------------------------------
+        # Validate Space Membership
+        # ---------------------------------------------------------
+        if not user.space_membership:
+            logger.error(f"[SOCKET CONNECT] User {user.id} has no active space")
+            return False
+
+        active_space = str(user.space_membership.space_id)
+
+        # ---------------------------------------------------------
+        # Store Session
+        # ---------------------------------------------------------
+        session["user_id"] = str(user.id)
+        session["room_name"] = active_space
+
+        join_room(active_space)
+
+        logger.info(
+            f"""
+================ SOCKET CONNECTED ================
+SID          : {request.sid}
+User ID      : {session['user_id']}
+Space        : {active_space}
+Worker PID   : {os.getpid()}
+Joined Rooms : {socketio.server.rooms(request.sid)}
+==================================================
+"""
+        )
+
+        # ---------------------------------------------------------
+        # Presence Registration
+        # ---------------------------------------------------------
+        became_online = presence_manager.add_connection(
+            session["user_id"],
+            request.sid
+        )
+
+        if became_online:
+            emit(
+                "presence_changed",
+                {
+                    "user_id": session["user_id"],
+                    "status": "online"
+                },
+                room=active_space,
+                include_self=False
+            )
+
+        # ---------------------------------------------------------
+        # Notify Current Partner Status
+        # ---------------------------------------------------------
+        partner = (
+            SpaceMember.query.filter(
+                SpaceMember.space_id == active_space,
+                SpaceMember.user_id != user.id
+            )
+            .first()
+        )
+
+        if partner and presence_manager.is_online(str(partner.user_id)):
+            emit(
+                "presence_changed",
+                {
+                    "user_id": str(partner.user_id),
+                    "status": "online"
+                },
+                to=request.sid
+            )
+
+        # ---------------------------------------------------------
+        # Catch Up Read/Delivery Receipts
+        # ---------------------------------------------------------
+        try:
+            service = get_chat_service()
+
+            receipt_dto = service.mark_delivered_bulk(user.id)
+
+            if receipt_dto:
+                emit(
+                    "receipt_updated",
+                    receipt_dto,
+                    room=active_space,
+                    include_self=False
+                )
+
+        except Exception:
+            logger.exception(
+                "[SOCKET CONNECT] Failed while syncing delivery receipts"
+            )
+
+        logger.info(f"[SOCKET CONNECT] SUCCESS User={user.id}")
+
+        return True
+
     except Exception:
-        logger.error("Failed to catch up delivery cursor on connect", exc_info=True)
+        logger.exception("[SOCKET CONNECT] UNHANDLED EXCEPTION")
+        return False
 
 @socketio.on('disconnect')
 def handle_disconnect():
