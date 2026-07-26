@@ -11,7 +11,12 @@ class SocketService {
 
     async connect() {
         // If already connected, return the existing instance
-        if (this.socket) return this.socket;
+        if (this.socket) {
+            if (!this.socket.connected) {
+                this.socket.connect();
+            }
+            return this.socket;
+        }
 
         // If a connection is already in progress, wait for it to finish
         if (this.connectionPromise) return this.connectionPromise;

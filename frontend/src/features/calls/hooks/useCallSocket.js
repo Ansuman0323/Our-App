@@ -60,14 +60,15 @@ export const useCallSocket = () => {
 
     const safeEmit = useCallback((event, payload, ackCallback = null) => {
         const socket = socketService.getSocket();
+
         if (!socket || !socket.connected) {
-            log(`Emit Failed: Socket disconnected`, event);
+            log("Emit Failed", event);
             return;
         }
-        socket.emit("call:start", payload);
-        log(`Emitting: ${event}`, payload);
 
-        if (typeof ackCallback === 'function') {
+        log(`Emitting ${event}`, payload);
+
+        if (ackCallback) {
             socket.emit(event, payload, ackCallback);
         } else {
             socket.emit(event, payload);
@@ -84,6 +85,7 @@ export const useCallSocket = () => {
         });
     }, [safeEmit]);
 
+    const socket = socketService.getSocket();
     console.log("EMITTING CALL START");
     console.log(socket.listeners("call:start"));
 
