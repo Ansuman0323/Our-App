@@ -152,3 +152,9 @@ def toggle_reaction(message_id):
         import traceback
         traceback.print_exc()
         return jsonify({"error": type(e).__name__, "message": str(e)}), 500
+
+@chat_bp.route("/partner", methods=["GET"])
+@require_auth
+def get_partner():
+    partner = service.get_partner(g.current_user.id)
+    return jsonify(partner), 200

@@ -7,6 +7,7 @@ import { toast } from 'react-hot-toast';
 export const useChat = (user) => {
     const history = useMessageHistory();
     const [partnerReceipt, setPartnerReceipt] = useState(null);
+    const [partner, setPartner] = useState(null);
 
     const fetchPartnerReceipt = useCallback(async () => {
         try {
@@ -17,11 +18,22 @@ export const useChat = (user) => {
         }
     }, []);
 
+    const fetchPartner = useCallback(async () => {
+        try {
+            const data = await chatApi.getPartner();
+            console.log("Partner:", data); // Temporary
+            setPartner(data);
+        } catch (err) {
+            console.error("Failed to fetch partner", err);
+        }
+    }, []);
+
     // Hydrate on mount so ticks are correct before any socket event arrives (refresh-safe).
     useEffect(() => {
         if (!user?.id) return;
         fetchPartnerReceipt();
-    }, [user?.id, fetchPartnerReceipt]);
+        fetchPartner();
+    }, [user?.id, fetchPartnerReceipt, fetchPartner]);
 
     const handleReceiptUpdated = useCallback((receiptDto) => {
         console.log("receipt_updated", receiptDto);
@@ -254,5 +266,15 @@ export const useChat = (user) => {
         }
     };
 
-    return { ...history, ...socket, partnerReceipt, sendMessage, editMessage, deleteMessage, toggleReaction, deleteMessageForMe };
+    return {
+        ...history,
+        ...socket,
+        partner,
+        partnerReceipt,
+        sendMessage,
+        editMessage,
+        deleteMessage,
+        toggleReaction,
+        deleteMessageForMe
+    };
 };

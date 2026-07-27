@@ -66,5 +66,9 @@ export const chatApi = {
     deleteMessageForMe: async (messageId) => {
         const response = await api.delete(`/chat/messages/${messageId}/me`);
         return response.data;
+    },
+    getPartner: async () => {
+        const response = await api.get("/chat/partner");
+        return response.data;
     }
 };

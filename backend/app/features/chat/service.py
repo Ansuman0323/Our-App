@@ -18,6 +18,7 @@ from app.features.chat.exceptions import (
 )
 from app.models.message_reaction import MessageReaction
 from app.utils.storage import upload_file
+from app.models.user import User
 
 logger = logging.getLogger(__name__)
 
@@ -53,6 +54,35 @@ class ChatService:
             
         return msg
 
+
+    def get_partner(self, user_id):
+        membership = self.get_space_membership(user_id)
+
+        if not membership:
+            return None
+
+        partner_membership = self.get_partner_membership(
+            membership.space_id,
+            user_id
+        )
+
+        if not partner_membership:
+            return None
+
+        partner = (
+            self.session.query(User)
+            .filter(User.id == partner_membership.user_id)
+            .first()
+        )
+
+        if not partner:
+            return None
+
+        return {
+            "id": str(partner.id),
+            "display_name": partner.display_name,
+            "avatar_url": partner.avatar_url,
+        }
     # --- PUBLIC API ---
 
     def send_message(self, user_id, payload, file=None):
@@ -397,3 +427,5 @@ class ChatService:
 
         self.session.commit()
         return ChatSchema.dump_message(message)
+    def get_partner(self, user_id):
+        return self.repository.get_partner(user_id)
