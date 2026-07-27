@@ -32,7 +32,6 @@ export const ChatPage = () => {
         return partnerMessage?.sender_name || 'Partner';
     }, [messages, dbUser]);
 
-    // DERIVE PARTNER ID
     const partnerId = useMemo(() => {
         if (!dbUser || !messages.length) return null;
         const partnerMessage = messages.find(m => m.sender_id !== dbUser.id);
@@ -51,18 +50,37 @@ export const ChatPage = () => {
 
     if (isLoading) {
         return (
-            <div className="flex-1 flex flex-col items-center justify-center bg-slate-50 h-[100dvh]">
-                <div className="animate-pulse flex flex-col items-center">
-                    <div className="w-10 h-10 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin mb-4"></div>
-                    <p className="text-sm font-medium text-slate-500">Connecting securely...</p>
+            <div className="chat-page-root items-center justify-center relative overflow-hidden bg-[#FDF6F0]">
+                {/* Ambient glow field — signature motif, decorative only */}
+                <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden="true">
+                    <div className="absolute -top-24 -left-16 w-72 h-72 rounded-full bg-[#C4707E]/25 blur-3xl" />
+                    <div className="absolute bottom-0 -right-20 w-80 h-80 rounded-full bg-[#C9A66B]/20 blur-3xl" />
+                </div>
+
+                <div className="relative flex flex-col items-center">
+                    <div className="relative w-12 h-12 mb-5">
+                        <div className="absolute inset-0 rounded-full border-[3px] border-[#C4707E]/20" />
+                        <div className="absolute inset-0 rounded-full border-[3px] border-transparent border-t-[#C4707E] animate-spin" />
+                        <div className="absolute inset-0 flex items-center justify-center text-[#C4707E] text-lg">♥</div>
+                    </div>
+                    <p className="text-sm font-medium tracking-wide" style={{ fontFamily: "'Manrope', sans-serif", color: '#3F2A38' }}>
+                        Opening your space together...
+                    </p>
                 </div>
             </div>
         );
     }
 
     return (
-        <div className="bg-slate-100 min-h-[100dvh] flex items-center justify-center md:py-6 md:px-4 overflow-hidden">
-            <div className="flex flex-col w-full h-[100dvh] md:h-[calc(100dvh-48px)] max-w-[960px] bg-[#efeae2] relative md:shadow-2xl md:rounded-[2rem] overflow-hidden border-slate-200/60 md:border select-none">
+        <div className="chat-page-root relative select-none bg-[#FDF6F0]">
+            {/* Ambient glow field — persists behind header/list/input, decorative only */}
+            <div className="pointer-events-none fixed inset-0 overflow-hidden z-0" aria-hidden="true">
+                <div className="absolute top-[-10%] left-[-8%] w-96 h-96 rounded-full bg-[#C4707E]/[0.08] blur-3xl" />
+                <div className="absolute top-[30%] right-[-12%] w-[28rem] h-[28rem] rounded-full bg-[#C9A66B]/[0.07] blur-3xl" />
+                <div className="absolute bottom-[-15%] left-[20%] w-96 h-96 rounded-full bg-[#F6DEE3]/[0.35] blur-3xl" />
+            </div>
+
+            <div className="relative z-10 flex flex-col h-full">
                 <ChatHeader
                     partnerName={partnerName}
                     status={partnerStatus}

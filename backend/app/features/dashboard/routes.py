@@ -14,12 +14,9 @@ service = DashboardService(repository)
 @dashboard_bp.route('/', methods=['GET'])
 @require_auth
 def get_dashboard_home():
-    """Returns the aggregated dashboard state and widget placeholders."""
+    """Returns the current space-pairing state. No widget data belongs here yet."""
     try:
         data = service.get_home_data(g.current_user.id)
-        if not data:
-            return jsonify({"error": "User is not part of a space"}), 404
-            
         return jsonify(data), 200
     except Exception as e:
         logger.error(f"Error fetching dashboard data: {str(e)}")

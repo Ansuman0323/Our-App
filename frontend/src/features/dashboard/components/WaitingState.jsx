@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { pairingApi } from '../../pairing/api';
 
 export const WaitingState = () => {
@@ -56,36 +57,98 @@ export const WaitingState = () => {
         }
     };
 
-    if (loading) return <div className="py-20 text-center text-sm font-medium text-slate-400 animate-pulse">Loading invite details...</div>;
-    if (error) return <div className="py-20 text-center text-red-500">{error}</div>;
+    if (loading) {
+        return <div className="waiting-state__status">Preparing your shared world...</div>;
+    }
+    if (error) {
+        return <div className="waiting-state__status waiting-state__status--error">{error}</div>;
+    }
 
     return (
-        <div className="flex flex-col items-center justify-center py-10 text-center">
-            <div className="w-16 h-16 bg-indigo-50 text-indigo-600 rounded-full flex items-center justify-center mb-6 shadow-sm ring-1 ring-indigo-100">
-                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                </svg>
+        <motion.div
+            className="waiting-state"
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.2, ease: [0.4, 0, 0.2, 1] }}
+        >
+            <div className="waiting-state__hero" aria-hidden="true">
+                <span className="waiting-state__ring waiting-state__ring--outer" />
+                <span className="waiting-state__ring waiting-state__ring--inner" />
+                <div className="waiting-state__icon">
+                    <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path
+                            d="M12 4v16m8-8H4"
+                            stroke="currentColor"
+                            strokeWidth="2"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                        />
+                    </svg>
+                </div>
             </div>
-            <h2 className="text-2xl font-bold tracking-tight mb-2">Waiting for your partner</h2>
-            <p className="text-slate-500 mb-8 max-w-xs mx-auto">Share this code with your partner to connect your accounts.</p>
 
-            <div
-                className="bg-white px-8 py-4 rounded-2xl shadow-sm border border-slate-100 mb-8 w-full max-w-xs mx-auto cursor-pointer group hover:border-indigo-100 transition-colors"
+            <h2 className="waiting-state__title">Preparing your shared world</h2>
+            <p className="waiting-state__subtitle">
+                Share this code with your partner to connect your space.
+            </p>
+
+            <motion.button
+                type="button"
+                className="waiting-state__code"
                 onClick={handleCopy}
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ duration: 0.2, delay: 0.1, ease: [0.4, 0, 0.2, 1] }}
+                whileTap={{ scale: 0.97 }}
             >
-                <span className="text-4xl font-mono font-bold tracking-widest text-slate-800 group-hover:text-indigo-600 transition-colors">
-                    {inviteData?.invite_code}
-                </span>
-            </div>
+                {inviteData?.invite_code}
+            </motion.button>
 
-            <div className="flex flex-col sm:flex-row gap-3 w-full max-w-xs mx-auto">
-                <button onClick={handleShare} className="flex-1 bg-slate-900 text-white rounded-xl py-3 px-4 font-medium hover:bg-slate-800 transition-colors shadow-sm">
-                    {copied ? 'Copied!' : 'Share Code'}
-                </button>
-                <button onClick={handleRegenerate} className="flex-1 bg-white text-slate-700 rounded-xl py-3 px-4 font-medium border border-slate-200 hover:bg-slate-50 transition-colors shadow-sm">
+            <div className="waiting-state__actions">
+                <motion.button
+                    type="button"
+                    onClick={handleShare}
+                    className="waiting-state__btn waiting-state__btn--primary"
+                    whileTap={{ scale: 0.96 }}
+                >
+                    <AnimatePresence mode="wait" initial={false}>
+                        {copied ? (
+                            <motion.span
+                                key="copied"
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                                exit={{ opacity: 0 }}
+                                transition={{ duration: 0.15 }}
+                                className="waiting-state__btn-label"
+                            >
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                    <polyline points="20 6 9 17 4 12"></polyline>
+                                </svg>
+                                Copied!
+                            </motion.span>
+                        ) : (
+                            <motion.span
+                                key="share"
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                                exit={{ opacity: 0 }}
+                                transition={{ duration: 0.15 }}
+                                className="waiting-state__btn-label"
+                            >
+                                Share Code
+                            </motion.span>
+                        )}
+                    </AnimatePresence>
+                </motion.button>
+                <motion.button
+                    type="button"
+                    onClick={handleRegenerate}
+                    className="waiting-state__btn waiting-state__btn--secondary"
+                    whileTap={{ scale: 0.96 }}
+                >
                     Regenerate
-                </button>
+                </motion.button>
             </div>
-        </div>
+        </motion.div>
     );
 };

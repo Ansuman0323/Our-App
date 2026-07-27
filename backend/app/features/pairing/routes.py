@@ -24,23 +24,12 @@ service = PairingService(repository)
 @pairing_bp.route('/invite', methods=['GET'])
 @require_auth
 def get_invite():
-    """
-    Returns the current invite status for the authenticated user's space.
-    Used by the Dashboard to determine if it should show the waiting screen.
-    """
     try:
         result = service.get_invite_details(g.current_user.id)
-        
-        if not result:
-            logger.warning(f"User {g.current_user.id} requested invite details but is not in a space.")
-            return jsonify({"error": "You do not belong to a Space."}), 404
-            
         return jsonify(result), 200
-        
     except Exception as e:
         logger.error(f"Error fetching invite details: {str(e)}")
         return jsonify({"error": "Internal server error"}), 500
-
 
 @pairing_bp.route('/invite/regenerate', methods=['POST'])
 @require_auth

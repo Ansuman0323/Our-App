@@ -50,6 +50,14 @@ const TURN_URL = import.meta.env.VITE_TURN_URL || null;
 const TURN_USERNAME = import.meta.env.VITE_TURN_USERNAME || null;
 const TURN_CREDENTIAL = import.meta.env.VITE_TURN_CREDENTIAL || null;
 
+const TURN_URLS = [
+    import.meta.env.VITE_STUN_URL,
+    import.meta.env.VITE_TURN_URL_UDP,
+    import.meta.env.VITE_TURN_URL_TCP,
+    import.meta.env.VITE_TURN_URL_443,
+    import.meta.env.VITE_TURN_URL_TLS,
+].filter(Boolean);
+
 // ==========================================
 // ICE & RTC CONFIGURATION
 // ==========================================
@@ -58,15 +66,24 @@ const TURN_CREDENTIAL = import.meta.env.VITE_TURN_CREDENTIAL || null;
  * Used exclusively by the `callEngine` during `new RTCPeerConnection(RTC_CONFIGURATION)`.
  */
 const iceServers = [
-    { urls: 'stun:stun.l.google.com:19302' },
-    { urls: 'stun:stun1.l.google.com:19302' }
+    { urls: "stun:stun.l.google.com:19302" },
+    { urls: "stun:stun1.l.google.com:19302" }
 ];
 
-if (TURN_URL && TURN_USERNAME && TURN_CREDENTIAL) {
+if (TURN_URLS.length && TURN_USERNAME && TURN_CREDENTIAL) {
+
+    // First STUN
     iceServers.push({
-        urls: TURN_URL,
-        username: TURN_USERNAME,
-        credential: TURN_CREDENTIAL
+        urls: TURN_URLS[0]
+    });
+
+    // Remaining TURN servers
+    TURN_URLS.slice(1).forEach(url => {
+        iceServers.push({
+            urls: url,
+            username: TURN_USERNAME,
+            credential: TURN_CREDENTIAL
+        });
     });
 }
 

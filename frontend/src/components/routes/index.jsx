@@ -1,5 +1,6 @@
 import { createBrowserRouter, Navigate } from 'react-router-dom';
-import { GlobalLayout } from '../layouts/GlobalLayout';
+import { AuthLayout } from '../layouts/AuthLayout';
+import { AppLayout } from '../layouts/AppLayout';
 import { ProtectedRoute } from './ProtectedRoute';
 import { Login } from '../../features/auth/pages/Login';
 import { Signup } from '../../features/auth/pages/Signup';
@@ -12,8 +13,10 @@ import { ChatPage } from '../../features/chat/pages/ChatPage';
 
 export const router = createBrowserRouter([
     {
+        // Unauthenticated shell: no header, no BottomNav.
+        // Same paths as before ('/', '/login', '/signup').
         path: '/',
-        element: <GlobalLayout />,
+        element: <AuthLayout />,
         children: [
             {
                 index: true,
@@ -27,6 +30,14 @@ export const router = createBrowserRouter([
                 path: 'signup',
                 element: <Signup />,
             },
+        ],
+    },
+    {
+        // Authenticated app shell: header + BottomNav.
+        // Pathless layout route — children keep the exact same
+        // absolute paths they had before ('/dashboard', '/chat', etc.).
+        element: <AppLayout />,
+        children: [
             // Protected Routes (Must be logged in to access)
             {
                 element: <ProtectedRoute />,

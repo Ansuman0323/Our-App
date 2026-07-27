@@ -73,7 +73,7 @@ class PairingService:
         """Retrieves the invite status for the dashboard."""
         membership = self.repository.get_user_membership(user_id)
         if not membership:
-            return None
+            return {"status": "not_paired"}
 
         member_count = self.repository.get_space_member_count(membership.space_id)
 
@@ -83,10 +83,8 @@ class PairingService:
                 "status": "waiting",
                 "invite_code": space.invite_code
             }
-        
-        return {
-            "status": "connected"
-        }
+
+        return {"status": "connected"}
 
     def regenerate_invite_code(self, user_id):
         """Generates a new invite code (Owner only, 1 member max)."""

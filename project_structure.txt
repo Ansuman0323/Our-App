@@ -111,7 +111,9 @@ Our-App
 │   │   │   └── vite.svg
 │   │   ├── components
 │   │   │   ├── layouts
-│   │   │   │   └── GlobalLayout.jsx
+│   │   │   │   ├── AppLayout.jsx
+│   │   │   │   ├── AuthLayout.jsx
+│   │   │   │   └── BottomNav.jsx
 │   │   │   └── routes
 │   │   │       ├── index.jsx
 │   │   │       └── ProtectedRoute.jsx

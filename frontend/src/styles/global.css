@@ -1,16 +1,1098 @@
 @import "tailwindcss";
 
-/* 
-  Global variables and custom base layers for 'Together' will go here.
-  Future modules will use standard Tailwind utility classes in their TSX files.
+/*
+  Together — Global Design Tokens
+  Organized by purpose. Legacy variable names are kept as aliases to the
+  new tokens so every existing component picks up the new design language
+  automatically, with zero JSX/component changes required in this step.
 */
 :root {
-  --background: #ffffff;
-  --foreground: #0f172a;
+  /* ---------------------------------- */
+  /* Colors                             */
+  /* ---------------------------------- */
+  --color-primary: #6366f1;      /* indigo */
+  --color-primary-soft: #eef2ff; /* indigo-50 */
+  --color-secondary: #a78bfa;    /* lavender */
+  --color-secondary-soft: #f5f3ff; /* violet-50 — Dreams card tint */
+  --color-accent: #fb7185;       /* rose */
+  --color-success: #22c55e;      /* emerald */
+  --color-success-soft: #f0fdf4;
+  --color-warning: #f59e0b;      /* amber */
+  --color-danger: #dc2626;       /* red */
+  --color-on-color: #ffffff;     /* text/icon color placed on top of any solid accent */
+
+  /* Category accents — one per widget/feature area (Memory, Planner,
+     Wishlist, Calendar), kept as pastel as the rest of the palette.
+     Lavender/Rose above already cover Dreams/Chat. */
+  --color-pink: #f472b6;
+  --color-pink-soft: #fdf2f8;
+  --color-mint: #34d399;
+  --color-mint-soft: #ecfdf5;
+  --color-peach: #fb923c;
+  --color-peach-soft: #fff7ed;
+  --color-blue: #60a5fa;
+  --color-blue-soft: #eff6ff;
+
+  /* ---------------------------------- */
+  /* Gradients                          */
+  /* Named combinations only — used     */
+  /* sparingly on hero/icon surfaces,   */
+  /* never on body text or large fills. */
+  /* ---------------------------------- */
+  --gradient-rose-lavender: linear-gradient(135deg, var(--color-accent), var(--color-secondary));
+  --gradient-indigo-lavender: linear-gradient(135deg, var(--color-primary), var(--color-secondary));
+  --gradient-peach-rose: linear-gradient(135deg, var(--color-peach), var(--color-accent));
+  --gradient-mint-emerald: linear-gradient(135deg, var(--color-mint), var(--color-success));
+  /* Warm, romantic multi-stop wash — reserved for the single hero/
+     featured surface per screen (dashboard hero stat card). Soft
+     enough to keep text readable directly on top of it. */
+  --gradient-sunset: linear-gradient(135deg, var(--color-peach) 0%, var(--color-accent) 50%, var(--color-secondary) 100%);
+  /* Very light multi-hue wash for large background surfaces (header) —
+     three pastel -soft tones blended, low-contrast by design. Leads
+     rose → lavender per the romantic palette direction, rather than
+     indigo-first. */
+  --gradient-header-wash: linear-gradient(120deg, var(--color-pink-soft) 0%, var(--color-secondary-soft) 55%, var(--color-primary-soft) 100%);
+
+  /* ---------------------------------- */
+  /* Surfaces                           */
+  /* ---------------------------------- */
+  --surface-page: #fafafc;
+  --surface-card: #ffffff;
+  --surface-chat: #f7f5f2;
+  --surface-glass: rgba(255, 255, 255, 0.85);
+  --surface-border: #e2e8f0;
+
+  /* ---------------------------------- */
+  /* Text                               */
+  /* ---------------------------------- */
+  --text-primary: #0f172a;
+  --text-secondary: #475569;
+  --text-muted: #64748b;
+
+  /* ---------------------------------- */
+  /* Radius                             */
+  /* ---------------------------------- */
+  --radius-sm: 12px;
+  --radius-md: 16px;
+  --radius-lg: 22px;
+  --radius-xl: 28px;
+  --radius-full: 999px;
+
+  /* ---------------------------------- */
+  /* Shadows                            */
+  /* ---------------------------------- */
+  --shadow-sm: 0 1px 3px rgba(15, 23, 42, 0.05);
+  --shadow-md: 0 2px 10px rgba(15, 23, 42, 0.06);
+  --shadow-lg: 0 8px 24px rgba(15, 23, 42, 0.10);
+  /* Deeper, softer lift for hover/active elevation on cards. */
+  --shadow-floating: 0 16px 40px rgba(15, 23, 42, 0.12), 0 4px 12px rgba(15, 23, 42, 0.06);
+  /* Tinted glows for hover states on primary/accent surfaces —
+     colorful but low-opacity, per "never harsh saturated colors". */
+  --shadow-glow-primary: 0 8px 28px rgba(99, 102, 241, 0.22);
+  --shadow-glow-accent: 0 8px 28px rgba(251, 113, 133, 0.22);
+
+  /* ---------------------------------- */
+  /* Motion                             */
+  /* ---------------------------------- */
+  --duration-fast: 150ms;
+  --duration-normal: 200ms;
+  --duration-slow: 250ms;
+  --ease-standard: cubic-bezier(0.4, 0, 0.2, 1);
+  /* Slight overshoot for playful pops (icons, press feedback) —
+     used sparingly, not on layout-affecting transitions. */
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+
+  /* ---------------------------------- */
+  /* Spacing (4px base scale)           */
+  /* ---------------------------------- */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-7: 32px;
+  --space-8: 40px;
+
+  /* ---------------------------------- */
+  /* Typography                         */
+  /* ---------------------------------- */
+  --font-sans: system-ui, -apple-system, sans-serif;
+  --text-xs: 12px;
+  --text-sm: 13px;
+  --text-base: 15px;
+  --text-lg: 17px;
+  --text-xl: 22px;
+  --text-2xl: 28px;
+  --text-3xl: 32px;
+  --font-weight-regular: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
+  --font-weight-extrabold: 800;
+  --leading-tight: 1.2;
+  --leading-normal: 1.5;
+  --leading-relaxed: 1.7;
+
+  /* ---------------------------------- */
+  /* Layout (unrelated dimension tokens */
+  /* — kept as-is, not part of this     */
+  /* reorganization)                    */
+  /* ---------------------------------- */
+  --header-height: 52px;
+  --bottom-nav-height: 60px;
+
+  /* ---------------------------------- */
+  /* Legacy aliases — preserved so every*/
+  /* existing rule below keeps working  */
+  /* unmodified. New components should  */
+  /* prefer the tokens above instead of */
+  /* these names going forward.         */
+  /* ---------------------------------- */
+  --background: var(--surface-page);
+  --foreground: var(--text-primary);
+
+  --accent: var(--color-primary);
+  --accent-soft: var(--color-primary-soft);
+  --accent-contrast: var(--color-on-color);
+
+  --surface: var(--surface-card);
+  --surface-muted: var(--surface-page);
+  --border-subtle: var(--surface-border);
+
+  --success: var(--color-success);
+  --success-soft: var(--color-success-soft);
+  --danger: var(--color-danger);
 }
 
 body {
-  background-color: var(--background);
+  background-color: var(--surface-muted);
   color: var(--foreground);
   font-family: system-ui, -apple-system, sans-serif;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* ---------------------------------- */
+/* App shell (AppLayout)               */
+/* Bounded to the viewport so no route */
+/* can ever cause a window/document-   */
+/* level scroll. .app-main below is    */
+/* the single scroll owner for every   */
+/* normal page.                        */
+/* ---------------------------------- */
+
+.app-shell {
+  height: 100vh;
+  height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  background: var(--surface-muted);
+  overflow: hidden;
+}
+
+.app-header {
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  height: calc(var(--header-height) + env(safe-area-inset-top));
+  padding-top: env(safe-area-inset-top);
+  padding-left: 20px;
+  padding-right: 20px;
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: saturate(180%) blur(14px);
+  -webkit-backdrop-filter: saturate(180%) blur(14px);
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.app-header__brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.app-header__mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: var(--radius-full);
+  background: var(--accent-soft);
+  color: var(--accent);
+  flex-shrink: 0;
+}
+
+.app-header__title {
+  font-size: 17px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--foreground);
+}
+
+/* .app-main is the ONE scroll owner for all normal (non-chat) pages.
+   It is bounded (flex:1 + min-height:0) so it never grows past the
+   viewport itself, and overflow-y:auto turns any content taller than
+   that into a normal scrollbar. */
+.app-main {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  overflow-x: hidden;
+  overflow-y: auto;
+  padding-bottom: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom) + 12px);
+}
+
+/* Applied by AppLayout only on Chat routes, where BottomNav is unmounted.
+   Zeroes the bottom-nav reservation so the freed height goes to
+   .app-main__content (and from there, .chat-page-root / MessageList)
+   instead of being left as a blank gap. MessageInput already applies
+   its own safe-area padding, so no extra inset is needed here. */
+.app-main--full {
+  padding-bottom: 0;
+}
+
+/* Default (every route except Chat): unbounded / content-sized.
+   This MUST stay free of flex:1/min-height:0 here, or it can never
+   grow taller than .app-main's box — which is exactly what breaks
+   scrolling for Dashboard, Planner, Memories, Wishlist, etc. */
+.app-main__content {
+  width: 100%;
+  max-width: 480px;
+  margin: 0 auto;
+  padding: 16px 16px 8px;
+}
+
+/* Chat-only exception: when a .chat-page-root is rendered inside,
+   .app-main__content instead becomes a BOUNDED flex column, so the
+   page itself can't grow/scroll and MessageList becomes the sole
+   scroll container. Scoped via :has() so no other route is affected. */
+.app-main__content:has(.chat-page-root) {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+
+@media (min-width: 768px) {
+  .app-main__content {
+    max-width: 640px;
+    padding: 24px 24px 8px;
+  }
+}
+
+/* ---------------------------------- */
+/* Bottom navigation                  */
+/* ---------------------------------- */
+
+.bottom-nav {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 40;
+  display: flex;
+  align-items: stretch;
+  justify-content: space-around;
+  height: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom));
+  padding-bottom: env(safe-area-inset-bottom);
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: saturate(180%) blur(14px);
+  -webkit-backdrop-filter: saturate(180%) blur(14px);
+  border-top: 1px solid var(--border-subtle);
+  box-shadow: var(--shadow-lg);
+}
+
+.bottom-nav__item {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  min-width: 44px;
+  min-height: 44px;
+  color: var(--text-muted);
+  text-decoration: none;
+  transition: color 0.2s ease, transform 0.15s ease;
+}
+
+.bottom-nav__item:active {
+  transform: scale(0.94);
+}
+
+.bottom-nav__icon svg {
+  width: 22px;
+  height: 22px;
+  display: block;
+}
+
+.bottom-nav__label {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+
+.bottom-nav__item--active {
+  color: var(--accent);
+}
+
+/* ---------------------------------- */
+/* Dashboard                          */
+/* ---------------------------------- */
+
+.dashboard-page {
+  display: flex;
+  flex-direction: column;
+}
+
+.dashboard-header {
+  position: relative;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: var(--space-4);
+  margin-bottom: var(--space-6);
+  padding: var(--space-6) var(--space-5) var(--space-7);
+  border-radius: var(--radius-xl);
+  overflow: hidden;
+  background: var(--gradient-header-wash), var(--surface-card);
+  box-shadow: var(--shadow-sm);
+}
+
+/* Decorative gradient wash + a few drifting sparkles — purely visual,
+   sit behind the content, never intercept clicks. No new markup
+   needed for either layer. */
+.dashboard-header::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(220px 180px at 92% -15%, rgba(167, 139, 250, 0.28), transparent 70%),
+    radial-gradient(200px 200px at -5% 115%, rgba(251, 113, 133, 0.20), transparent 70%),
+    radial-gradient(160px 160px at 60% 130%, rgba(244, 114, 182, 0.14), transparent 70%);
+}
+
+.dashboard-header::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(3px 3px at 78% 18%, rgba(99, 102, 241, 0.45), transparent 100%),
+    radial-gradient(3px 3px at 88% 55%, rgba(251, 113, 133, 0.4), transparent 100%),
+    radial-gradient(2.5px 2.5px at 15% 30%, rgba(167, 139, 250, 0.4), transparent 100%),
+    radial-gradient(2.5px 2.5px at 32% 75%, rgba(244, 114, 182, 0.35), transparent 100%);
+  animation: ambient-drift 14s ease-in-out infinite;
+}
+
+.dashboard-header__main,
+.dashboard-header__side {
+  position: relative;
+  z-index: 1;
+}
+
+.dashboard-header__main {
+  flex: 1;
+  min-width: 0;
+}
+
+.dashboard-header__eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--text-sm);
+  font-weight: var(--font-weight-semibold);
+  color: var(--text-secondary);
+}
+
+.dashboard-header__name {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--text-2xl);
+  font-weight: var(--font-weight-extrabold);
+  letter-spacing: -0.02em;
+  color: var(--text-primary);
+  margin-top: var(--space-1);
+}
+
+.dashboard-header__tagline {
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  margin-top: var(--space-2);
+  max-width: 30ch;
+}
+
+.dashboard-header__divider {
+  width: 32px;
+  height: 3px;
+  background: var(--gradient-rose-lavender);
+  border-radius: var(--radius-full);
+  margin: var(--space-4) 0 var(--space-3);
+  opacity: 0.8;
+}
+
+.dashboard-header__status {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--text-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--text-secondary);
+  padding: 6px 12px;
+  border-radius: var(--radius-full);
+  background: var(--color-success-soft);
+}
+
+.dashboard-header__status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--color-success);
+  flex-shrink: 0;
+  animation: pulse-dot 1.6s ease-in-out infinite;
+}
+
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+.dashboard-header__side {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  flex-shrink: 0;
+}
+
+/* Reserved slot for a future profile/couple photo or generated avatar.
+   44px matches the existing avatar/icon sizing already used elsewhere
+   in the app (ChatHeader's partner avatar, .widget-card__icon below),
+   rather than introducing a new size. */
+.dashboard-header__avatar {
+  position: relative;
+  width: 44px;
+  height: 44px;
+  border-radius: var(--radius-full);
+  background: var(--gradient-indigo-lavender);
+  background-size: 180% 180%;
+  opacity: 0.9;
+  border: 1px solid rgba(255, 255, 255, 0.6);
+  box-shadow: var(--shadow-glow-primary);
+  flex-shrink: 0;
+  animation: gradient-flow 6s ease-in-out infinite, glow-breathe 3.5s ease-in-out infinite;
+}
+
+/* Small heart accent on the reserved avatar slot — decorative only,
+   still no initials or invented imagery, per the note in
+   DashboardHeader.jsx. */
+.dashboard-header__avatar-badge {
+  position: absolute;
+  right: -4px;
+  bottom: -4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  font-size: 10px;
+  background: var(--surface-card);
+  border: 1px solid rgba(255, 255, 255, 0.8);
+  box-shadow: var(--shadow-sm);
+}
+
+@keyframes gradient-flow {
+  0%, 100% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+}
+
+@keyframes glow-breathe {
+  0%, 100% { box-shadow: 0 6px 18px rgba(99, 102, 241, 0.18); }
+  50% { box-shadow: 0 8px 26px rgba(99, 102, 241, 0.32); }
+}
+
+.dashboard-header__logout {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: var(--radius-full);
+  background: var(--surface-card);
+  border: 1px solid var(--surface-border);
+  color: var(--text-muted);
+  flex-shrink: 0;
+  transition: background var(--duration-fast) var(--ease-standard),
+              color var(--duration-fast) var(--ease-standard),
+              box-shadow var(--duration-normal) var(--ease-standard),
+              transform var(--duration-fast) var(--ease-spring);
+}
+
+@media (hover: hover) {
+  .dashboard-header__logout:hover {
+    color: var(--color-accent);
+    box-shadow: var(--shadow-glow-accent);
+    transform: scale(1.06);
+  }
+}
+
+.dashboard-header__logout:active {
+  background: var(--surface-page);
+  color: var(--color-accent);
+  transform: scale(0.96);
+  box-shadow: var(--shadow-glow-accent);
+}
+
+@media (min-width: 768px) {
+  .dashboard-header__name {
+    font-size: var(--text-3xl);
+  }
+}
+
+/* Widget grid + cards.
+   Mobile-first 2-column tile grid (phone-home-screen rhythm) with the
+   first widget rendered as a full-width "hero" tile — mirrors the
+   reference's featured stat card without copying its exact layout. */
+
+.widget-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+}
+
+@media (min-width: 768px) {
+  .widget-grid {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 14px;
+  }
+}
+
+.widget-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  width: 100%;
+  padding: 16px;
+  background: var(--surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  min-height: 152px;
+  text-align: left;
+  overflow: hidden;
+  transition: box-shadow var(--duration-normal) var(--ease-standard),
+              transform var(--duration-normal) var(--ease-standard),
+              border-color var(--duration-normal) var(--ease-standard);
+}
+
+/* Soft top-left sheen so the card doesn't read as a flat rectangle —
+   decorative only, sits above the background but below the content. */
+.widget-card::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.55), transparent 45%);
+}
+
+.widget-card__icon,
+.widget-card__body,
+.widget-card__chevron {
+  position: relative;
+  z-index: 1;
+}
+
+@media (hover: hover) {
+  .widget-card:hover {
+    box-shadow: var(--shadow-floating);
+    border-color: transparent;
+    transform: translateY(-2px);
+  }
+
+  .widget-card:hover .widget-card__icon {
+    transform: scale(1.08);
+  }
+
+  .widget-card:hover .widget-card__chevron {
+    transform: translateX(2px);
+    color: var(--accent);
+    background: var(--surface-card);
+  }
+}
+
+/* Scale/icon/chevron press feedback now comes from framer-motion's
+   whileTap variants (see WidgetCard.jsx) so it can spring instead of
+   just easing linearly — this rule only carries the parts CSS still
+   owns: the shadow lifting and the border disappearing on press. */
+.widget-card:active {
+  box-shadow: var(--shadow-floating);
+  border-color: transparent;
+}
+
+/* Radial flash that pulses in on tap, tinted with the card's own
+   icon color — sits above the sheen, below the icon/text/chevron. */
+.widget-card__glow {
+  position: absolute;
+  inset: -20%;
+  z-index: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  mix-blend-mode: soft-light;
+}
+
+.widget-card__icon {
+  flex-shrink: 0;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-md);
+  background: var(--accent-soft);
+  font-size: 19px;
+  transition: transform var(--duration-normal) var(--ease-spring);
+}
+
+.widget-card__body {
+  flex: 1;
+  min-width: 0;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  margin-top: 12px;
+  padding-right: 26px;
+}
+
+.widget-card__title {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--foreground);
+}
+
+.widget-card__content {
+  font-size: 12.5px;
+  line-height: var(--leading-normal);
+  color: var(--text-muted);
+  margin-top: 4px;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.widget-card__footer {
+  font-size: 12px;
+  color: var(--accent);
+  font-weight: 600;
+  margin-top: 6px;
+}
+
+/* Chevron sits as its own small circular badge, bottom-right of the
+   tile — matches the reference's card affordance without relying on
+   a full row layout. */
+.widget-card__chevron {
+  position: absolute;
+  right: 12px;
+  bottom: 12px;
+  width: 26px;
+  height: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.6);
+  color: var(--text-muted);
+  flex-shrink: 0;
+  transition: transform var(--duration-normal) var(--ease-standard),
+              color var(--duration-normal) var(--ease-standard),
+              background var(--duration-normal) var(--ease-standard);
+}
+
+.widget-card__chevron svg {
+  width: 15px;
+  height: 15px;
+}
+
+/* Hero variant — the featured first tile (e.g. Days Together). Spans
+   the full grid width and switches back to a horizontal layout with
+   a big icon and a warm gradient surface. */
+.widget-card--hero {
+  grid-column: 1 / -1;
+  flex-direction: row;
+  align-items: center;
+  gap: 16px;
+  min-height: 108px;
+  padding: 20px;
+  border: none;
+  box-shadow: var(--shadow-md);
+}
+
+.widget-card--hero::before {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.35), transparent 55%);
+}
+
+.widget-card--hero .widget-card__icon {
+  width: 52px;
+  height: 52px;
+  font-size: 24px;
+  border-radius: var(--radius-lg);
+}
+
+.widget-card--hero .widget-card__body {
+  margin-top: 0;
+  padding-right: 0;
+}
+
+.widget-card--hero .widget-card__title {
+  font-size: 15px;
+  color: var(--color-on-color);
+  opacity: 0.92;
+}
+
+.widget-card--hero .widget-card__content {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-on-color);
+  -webkit-line-clamp: 2;
+}
+
+.widget-card--hero .widget-card__footer {
+  color: var(--color-on-color);
+  opacity: 0.85;
+}
+
+.widget-card--hero .widget-card__chevron {
+  position: static;
+  margin-left: auto;
+  background: rgba(255, 255, 255, 0.28);
+  color: var(--color-on-color);
+}
+
+/* Connected / Waiting states */
+
+.connected-state {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+}
+
+.connected-state::before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  inset: -24px -16px auto -16px;
+  height: 320px;
+  pointer-events: none;
+  background:
+    radial-gradient(240px 240px at 92% 0%, rgba(167, 139, 250, 0.20), transparent 70%),
+    radial-gradient(280px 280px at 4% 55%, rgba(251, 113, 133, 0.13), transparent 70%),
+    radial-gradient(3px 3px at 30% 15%, rgba(99, 102, 241, 0.4), transparent 100%),
+    radial-gradient(4px 4px at 70% 30%, rgba(251, 113, 133, 0.35), transparent 100%),
+    radial-gradient(3px 3px at 50% 8%, rgba(167, 139, 250, 0.35), transparent 100%);
+  animation: ambient-drift 16s ease-in-out infinite;
+}
+
+/* Small closing note under the widget grid — purely decorative, no
+   data binding, just a soft place for the eye to land. */
+.connected-state__footer {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 20px;
+  padding: 16px 18px;
+  border-radius: var(--radius-lg);
+  background: var(--gradient-header-wash), var(--surface-card);
+  border: 1px solid var(--surface-border);
+}
+
+.connected-state__footer-mark {
+  flex-shrink: 0;
+  font-size: 18px;
+  line-height: 1;
+  color: var(--color-accent);
+  opacity: 0.7;
+}
+
+.connected-state__footer-text {
+  font-size: 13px;
+  font-style: italic;
+  color: var(--text-secondary);
+  line-height: var(--leading-normal);
+}
+
+@keyframes ambient-drift {
+  0%, 100% { transform: translate(0, 0) scale(1); opacity: 0.85; }
+  50% { transform: translate(-10px, 8px) scale(1.04); opacity: 1; }
+}
+.waiting-state__hero {
+  position: relative;
+  width: 96px;
+  height: 96px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 20px;
+}
+
+.waiting-state__ring {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  border: 1px solid var(--color-primary);
+  opacity: 0.15;
+}
+
+.waiting-state__ring--outer {
+  animation: waiting-ring-pulse 4s ease-in-out infinite;
+}
+
+.waiting-state__ring--inner {
+  inset: 12px;
+  animation: waiting-ring-pulse 4s ease-in-out infinite 1.3s;
+}
+
+@keyframes waiting-ring-pulse {
+  0%, 100% { transform: scale(0.9); opacity: 0.18; }
+  50% { transform: scale(1.05); opacity: 0.05; }
+}
+
+.waiting-state__icon {
+  position: relative;
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--color-primary), var(--color-secondary));
+  background-size: 180% 180%;
+  color: var(--color-on-color);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: var(--shadow-glow-primary);
+  animation: gradient-flow 6s ease-in-out infinite, glow-breathe 3.5s ease-in-out infinite;
+}
+
+.waiting-state__icon svg {
+  width: 24px;
+  height: 24px;
+}
+
+.waiting-state__btn-label {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .waiting-state__ring--outer,
+  .waiting-state__ring--inner {
+    animation: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dashboard-header__logout,
+  .widget-card,
+  .widget-card__icon,
+  .widget-card__chevron,
+  .waiting-state__code,
+  .waiting-state__btn--primary,
+  .waiting-state__btn--secondary {
+    transition: none;
+  }
+
+  .connected-state::before,
+  .waiting-state::before,
+  .dashboard-header::after,
+  .dashboard-header__avatar,
+  .waiting-state__icon {
+    animation: none;
+  }
+}
+
+.waiting-state {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 40px 16px;
+}
+
+.waiting-state::before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  inset: -24px -16px auto -16px;
+  height: 380px;
+  pointer-events: none;
+  background:
+    radial-gradient(260px 260px at 90% 5%, rgba(99, 102, 241, 0.18), transparent 70%),
+    radial-gradient(240px 240px at 6% 40%, rgba(251, 113, 133, 0.15), transparent 70%),
+    radial-gradient(3px 3px at 25% 20%, rgba(167, 139, 250, 0.4), transparent 100%),
+    radial-gradient(4px 4px at 75% 12%, rgba(99, 102, 241, 0.35), transparent 100%);
+  animation: ambient-drift 18s ease-in-out infinite 2s;
+}
+
+.waiting-state__status {
+  padding: 60px 16px;
+  text-align: center;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.waiting-state__status--error {
+  color: var(--danger);
+}
+
+
+.waiting-state__icon svg {
+  width: 24px;
+  height: 24px;
+}
+
+.waiting-state__title {
+  font-size: 22px;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  margin-bottom: 8px;
+}
+
+.waiting-state__subtitle {
+  color: var(--text-muted);
+  max-width: 280px;
+  margin: 0 auto 28px;
+  font-size: 14px;
+}
+
+.waiting-state__code {
+  width: 100%;
+  max-width: 280px;
+  padding: 18px 24px;
+  border-radius: var(--radius-xl);
+  background: var(--surface);
+  border: 1px solid color-mix(in srgb, var(--color-primary) 18%, var(--surface-border));
+  box-shadow: var(--shadow-md);
+  font-family: 'SF Mono', ui-monospace, monospace;
+  font-size: 30px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  color: var(--foreground);
+  margin-bottom: 24px;
+  min-height: 44px;
+  transition: box-shadow var(--duration-normal) var(--ease-standard);
+}
+
+@media (hover: hover) {
+  .waiting-state__code:hover {
+    box-shadow: var(--shadow-floating);
+  }
+}
+
+.waiting-state__code:active {
+  box-shadow: var(--shadow-floating);
+}
+
+.waiting-state__actions {
+  display: flex;
+  gap: 10px;
+  width: 100%;
+  max-width: 280px;
+}
+
+.waiting-state__btn {
+  flex: 1;
+  min-height: 48px;
+  border-radius: var(--radius-md);
+  font-weight: 700;
+  font-size: 14px;
+}
+
+.waiting-state__btn--primary {
+  background: var(--gradient-indigo-lavender);
+  color: var(--color-on-color);
+  box-shadow: var(--shadow-glow-primary);
+  transition: box-shadow var(--duration-normal) var(--ease-standard);
+}
+
+@media (hover: hover) {
+  .waiting-state__btn--primary:hover {
+    box-shadow: 0 10px 32px rgba(99, 102, 241, 0.32);
+  }
+}
+
+.waiting-state__btn--primary:active {
+  box-shadow: 0 10px 32px rgba(99, 102, 241, 0.32);
+}
+
+.waiting-state__btn--secondary {
+  background: var(--surface);
+  color: var(--foreground);
+  border: 1px solid var(--border-subtle);
+  transition: background var(--duration-normal) var(--ease-standard),
+              border-color var(--duration-normal) var(--ease-standard),
+              color var(--duration-normal) var(--ease-standard);
+}
+
+@media (hover: hover) {
+  .waiting-state__btn--secondary:hover {
+    background: var(--color-primary-soft);
+    border-color: transparent;
+    color: var(--color-primary);
+  }
+}
+
+.waiting-state__btn--secondary:active {
+  background: var(--color-primary-soft);
+  border-color: transparent;
+  color: var(--color-primary);
+}
+
+@media (min-width: 768px) {
+  .waiting-state {
+    padding: 56px 16px;
+  }
+}
+
+/* ---------------------------------- */
+/* Chat page (ChatPage)               */
+/* Fills whatever bounded space       */
+/* .app-main__content:has(...) hands  */
+/* it (see above), and cancels that   */
+/* container's padding so the chat    */
+/* surface is edge-to-edge like a     */
+/* real messaging app. MessageList is */
+/* the only element inside that ever  */
+/* scrolls.                           */
+/* ---------------------------------- */
+
+.chat-page-root {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  background: #efeae2;
+  margin: -16px -16px -8px;
+}
+
+@media (min-width: 768px) {
+  .chat-page-root {
+    margin: -24px -24px -8px;
+    border-radius: 2rem;
+    box-shadow: var(--shadow-lg);
+    border: 1px solid var(--border-subtle);
+  }
 }

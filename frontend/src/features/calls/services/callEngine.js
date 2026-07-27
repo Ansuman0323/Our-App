@@ -97,22 +97,50 @@ export class CallEngine extends EventEmitter {
 
     async startLocalMedia(customConstraints = null) {
         this._assertState([EngineState.UNINITIALIZED], 'startLocalMedia');
-        this._log('Requesting local media...');
+
+        console.log("========== MEDIA START ==========");
+        console.log("navigator.mediaDevices =", navigator.mediaDevices);
+        console.log("getUserMedia =", navigator.mediaDevices?.getUserMedia);
 
         try {
             const constraints = customConstraints || DEFAULT_MEDIA_CONSTRAINTS;
+
+            console.log("Constraints:", constraints);
+
             this.localStream = await navigator.mediaDevices.getUserMedia(constraints);
 
+            console.log("✅ getUserMedia SUCCESS");
+            console.log("Tracks:", this.localStream.getTracks());
+
             this.localStream.getTracks().forEach(track => {
-                this.emit('track:added', { stream: 'local', track });
+                console.log(
+                    `${track.kind} enabled=${track.enabled} readyState=${track.readyState}`
+                );
+
+                this.emit("track:added", {
+                    stream: "local",
+                    track
+                });
             });
 
             this._transitionState(EngineState.MEDIA_READY);
-            this.emit('media:localstream', this.localStream);
+            this.emit("media:localstream", this.localStream);
+
             return this.localStream;
-        } catch (error) {
-            this.emit('engine:error', { type: 'media_permission_denied', originalError: error });
-            throw error;
+
+        } catch (err) {
+
+            console.error("❌ getUserMedia FAILED");
+            console.error("name =", err.name);
+            console.error("message =", err.message);
+            console.error(err);
+
+            this.emit("engine:error", {
+                type: "media_permission_denied",
+                originalError: err
+            });
+
+            throw err;
         }
     }
 

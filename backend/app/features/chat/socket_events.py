@@ -17,11 +17,9 @@ logger = logging.getLogger(__name__)
 presence_manager = PresenceManager()
 
 def get_chat_service():
-    """Instantiates the service with the current request's DB session."""
     return ChatService(ChatRepository(db.session), db.session)
 
 def socket_error_handler(f):
-    """Standardizes socket errors to match REST error payloads perfectly."""
     @wraps(f)
     def wrapper(*args, **kwargs):
         try:
@@ -38,26 +36,43 @@ def socket_error_handler(f):
         except Exception as e:
             logger.error("Unexpected socket error", exc_info=True)
             return {
-                "status": "error", 
+                "status": "error",
                 "error": {
-                    "error_code": "INTERNAL_SERVER_ERROR", 
+                    "error_code": "INTERNAL_SERVER_ERROR",
                     "message": "An internal error occurred."
                 }
             }
     return wrapper
 
+def require_room(f):
+    """
+    Guards any handler that depends on the user already belonging to a space.
+    A user with no space yet is a valid connection, just not a valid caller
+    for room-scoped events.
+    """
+    @wraps(f)
+    def wrapper(*args, **kwargs):
+        if not session.get("room_name"):
+            return {
+                "status": "error",
+                "error": {
+                    "error_code": "NO_ACTIVE_SPACE",
+                    "message": "You must join a Space before doing this."
+                }
+            }
+        return f(*args, **kwargs)
+    return wrapper
+
 def authenticate_socket(auth_payload):
-    """Authenticates the socket using the shared REST JWT helper."""
     if not auth_payload or 'token' not in auth_payload:
         return None
     try:
-        # Rely entirely on the shared helper for validation and error raising
         payload = verify_supabase_token(auth_payload['token'])
         return payload.get('sub')
     except Exception as e:
         logger.warning(f"Socket auth failed: {str(e)}")
         return None
-    
+
 # ==========================================
 # CONNECTION LIFECYCLE
 # ==========================================
@@ -68,43 +83,32 @@ def handle_connect(auth):
     logger.info(f"[SOCKET CONNECT] SID={request.sid} PID={os.getpid()}")
 
     try:
-        # ---------------------------------------------------------
-        # Authenticate Socket
-        # ---------------------------------------------------------
         supabase_uid = authenticate_socket(auth)
-
         if not supabase_uid:
             logger.error("[SOCKET CONNECT] Authentication failed")
             return False
 
-        logger.info(f"[SOCKET CONNECT] Authenticated Supabase UID: {supabase_uid}")
-
-        # ---------------------------------------------------------
-        # Load User
-        # ---------------------------------------------------------
         user = User.query.filter_by(supabase_uid=supabase_uid).first()
-
         if not user:
             logger.error(f"[SOCKET CONNECT] User not found for UID: {supabase_uid}")
             return False
 
-        logger.info(f"[SOCKET CONNECT] User found: {user.id}")
+        logger.info(f"[SOCKET CONNECT] Authenticated user: {user.id}")
+
+        session["user_id"] = str(user.id)
+        session["room_name"] = None  # default: no space yet, connection is still valid
 
         # ---------------------------------------------------------
-        # Validate Space Membership
+        # No space yet: the socket connects successfully, but there
+        # is no room to join and nothing to relay. This is a normal
+        # state for a brand-new user, not a rejection condition.
         # ---------------------------------------------------------
         if not user.space_membership:
-            logger.error(f"[SOCKET CONNECT] User {user.id} has no active space")
-            return False
+            logger.info(f"[SOCKET CONNECT] User {user.id} has no space yet — connected, no room joined")
+            return True
 
         active_space = str(user.space_membership.space_id)
-
-        # ---------------------------------------------------------
-        # Store Session
-        # ---------------------------------------------------------
-        session["user_id"] = str(user.id)
         session["room_name"] = active_space
-
         join_room(active_space)
 
         logger.info(
@@ -119,69 +123,37 @@ Joined Rooms : {socketio.server.rooms(request.sid)}
 """
         )
 
-        # ---------------------------------------------------------
-        # Presence Registration
-        # ---------------------------------------------------------
-        became_online = presence_manager.add_connection(
-            session["user_id"],
-            request.sid
-        )
-
+        became_online = presence_manager.add_connection(session["user_id"], request.sid)
         if became_online:
             emit(
                 "presence_changed",
-                {
-                    "user_id": session["user_id"],
-                    "status": "online"
-                },
+                {"user_id": session["user_id"], "status": "online"},
                 room=active_space,
                 include_self=False
             )
 
-        # ---------------------------------------------------------
-        # Notify Current Partner Status
-        # ---------------------------------------------------------
         partner = (
             SpaceMember.query.filter(
                 SpaceMember.space_id == active_space,
                 SpaceMember.user_id != user.id
-            )
-            .first()
+            ).first()
         )
-
         if partner and presence_manager.is_online(str(partner.user_id)):
             emit(
                 "presence_changed",
-                {
-                    "user_id": str(partner.user_id),
-                    "status": "online"
-                },
+                {"user_id": str(partner.user_id), "status": "online"},
                 to=request.sid
             )
 
-        # ---------------------------------------------------------
-        # Catch Up Read/Delivery Receipts
-        # ---------------------------------------------------------
         try:
             service = get_chat_service()
-
             receipt_dto = service.mark_delivered_bulk(user.id)
-
             if receipt_dto:
-                emit(
-                    "receipt_updated",
-                    receipt_dto,
-                    room=active_space,
-                    include_self=False
-                )
-
+                emit("receipt_updated", receipt_dto, room=active_space, include_self=False)
         except Exception:
-            logger.exception(
-                "[SOCKET CONNECT] Failed while syncing delivery receipts"
-            )
+            logger.exception("[SOCKET CONNECT] Failed while syncing delivery receipts")
 
         logger.info(f"[SOCKET CONNECT] SUCCESS User={user.id}")
-
         return True
 
     except Exception:
@@ -190,14 +162,20 @@ Joined Rooms : {socketio.server.rooms(request.sid)}
 
 @socketio.on('disconnect')
 def handle_disconnect():
-    if hasattr(request, 'user_id'):
-        is_completely_offline = presence_manager.remove_connection(session["user_id"], request.sid)
-        leave_room(session["room_name"])
-        
+    user_id = session.get("user_id")
+    room_name = session.get("room_name")
+
+    if not user_id:
+        return
+
+    is_completely_offline = presence_manager.remove_connection(user_id, request.sid)
+
+    if room_name:
+        leave_room(room_name)
         if is_completely_offline:
-            emit('presence_changed', {'user_id': session["user_id"], 'status': 'offline'}, room=session["room_name"])
-            
-        logger.info("Socket disconnected", extra={"user_id": session["user_id"], "sid": request.sid})
+            emit('presence_changed', {'user_id': user_id, 'status': 'offline'}, room=room_name)
+
+    logger.info("Socket disconnected", extra={"user_id": user_id, "sid": request.sid})
 
 # ==========================================
 # MESSAGE FLOW
@@ -205,17 +183,14 @@ def handle_disconnect():
 
 @socketio.on('send_message')
 @socket_error_handler
+@require_room
 def handle_send_message(payload):
-    print("SEND_MESSAGE EVENT RECEIVED")
     service = get_chat_service()
     dto, is_created = service.send_message(session["user_id"], payload)
-    
+
     if is_created:
-        # Broadcast newly created message to room
         emit('receive_message', dto, room=session["room_name"], include_self=False)
 
-        # If the recipient is already connected, mark it delivered immediately
-        # instead of waiting for their next reconnect to catch up.
         partner = service.repository.get_partner_membership(
             session["room_name"],
             session["user_id"]
@@ -223,33 +198,33 @@ def handle_send_message(payload):
         if partner and presence_manager.is_online(str(partner.user_id)):
             receipt_dto = service.mark_delivered_for_message(partner.user_id, dto['id'])
             if receipt_dto:
-                # Self (the sender) needs this to flip their own message's tick,
-                # so this one is NOT include_self=False.
                 emit('receipt_updated', receipt_dto, room=session["room_name"])
-        
+
     return {"status": "success", "data": dto}
 
 @socketio.on('edit_message')
 @socket_error_handler
+@require_room
 def handle_edit_message(payload):
     service = get_chat_service()
     message_id = payload.get('message_id')
     new_content = payload.get('content')
-    
+
     dto = service.edit_message(session["user_id"], message_id, new_content)
     emit('message_updated', dto, room=session["room_name"], include_self=False)
-    
+
     return {"status": "success", "data": dto}
 
 @socketio.on('delete_message')
 @socket_error_handler
+@require_room
 def handle_delete_message(payload):
     service = get_chat_service()
     message_id = payload.get('message_id')
-    
+
     dto = service.soft_delete_message(session["user_id"], message_id)
     emit('message_updated', dto, room=session["room_name"], include_self=False)
-    
+
     return {"status": "success", "data": dto}
 
 # ==========================================
@@ -258,30 +233,26 @@ def handle_delete_message(payload):
 
 @socketio.on('mark_read')
 @socket_error_handler
+@require_room
 def handle_mark_read(payload):
     service = get_chat_service()
     message_id = payload.get('message_id')
-    
+
     receipt_dto = service.mark_message_read(session["user_id"], message_id)
     if receipt_dto:
-        emit(
-            'receipt_updated',
-            receipt_dto,
-            room=session["room_name"],
-            include_self=False
-        )
+        emit('receipt_updated', receipt_dto, room=session["room_name"], include_self=False)
 
-    
     return {"status": "success", "data": receipt_dto}
 
 @socketio.on('typing_start')
 def handle_typing_start():
-    if hasattr(request, 'room_name'):
-        if presence_manager.can_emit_typing(request.sid):
-            emit('typing_start', {'user_id': session["user_id"]}, room=session["room_name"], include_self=False)
+    room_name = session.get("room_name")
+    if room_name and presence_manager.can_emit_typing(request.sid):
+        emit('typing_start', {'user_id': session["user_id"]}, room=room_name, include_self=False)
 
 @socketio.on('typing_stop')
 def handle_typing_stop():
-    if hasattr(request, 'room_name'):
+    room_name = session.get("room_name")
+    if room_name:
         presence_manager.reset_typing(request.sid)
-        emit('typing_stop', {'user_id': session["user_id"]}, room=session["room_name"], include_self=False)
+        emit('typing_stop', {'user_id': session["user_id"]}, room=room_name, include_self=False)

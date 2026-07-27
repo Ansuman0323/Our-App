@@ -125,7 +125,7 @@ const FullscreenImageModal = ({ src, alt, onClose }) => {
         >
             <button
                 onClick={onClose}
-                className="absolute top-4 right-4 md:top-6 md:right-6 text-white/50 hover:text-white p-2 rounded-full hover:bg-white/10 transition-colors focus:outline-none z-10"
+                className="absolute top-4 right-4 md:top-6 md:right-6 text-white/50 hover:text-white p-2.5 rounded-full hover:bg-white/10 transition-colors focus:outline-none z-10"
                 aria-label="Close fullscreen image"
             >
                 <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -319,14 +319,14 @@ export const DocumentMessage = React.memo(({ attachment, isDeleted, isPending, i
 
     const card = (
         <div
-            className={`flex items-center gap-3 p-3 rounded-2xl border transition-all duration-200 ${isError
+            className={`flex items-center gap-3 p-3.5 rounded-2xl border transition-all duration-200 ${isError
                 ? 'bg-red-50 border-red-200'
                 : isDeleted
                     ? 'bg-black/5 border-transparent'
-                    : 'bg-white/70 border-slate-200/70 hover:bg-white hover:shadow-md hover:-translate-y-0.5 active:scale-[0.99] active:shadow-sm'
+                    : 'bg-white/70 border-slate-200/70 hover:bg-white hover:shadow-[0_2px_4px_rgba(15,23,42,0.04),0_8px_16px_rgba(15,23,42,0.06)] hover:-translate-y-0.5 active:scale-[0.99] active:shadow-sm'
                 }`}
         >
-            <div className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 ${isError ? 'bg-red-100 text-red-500' : meta.tint}`}>
+            <div className={`w-11 h-11 rounded-2xl flex items-center justify-center shrink-0 ${isError ? 'bg-red-100 text-red-500' : meta.tint}`}>
                 {iconSlot}
             </div>
 
@@ -406,8 +406,8 @@ export const AttachmentPreview = React.memo(({ file, onRemove }) => {
     const isVideo = file.type.startsWith('video/');
 
     return (
-        <div className="flex items-center gap-3 p-2 mb-2 bg-slate-50 border border-slate-200 rounded-xl animate-in fade-in slide-in-from-bottom-2">
-            <div className="w-12 h-12 rounded-lg overflow-hidden bg-slate-200 flex items-center justify-center shrink-0 border border-slate-300/50">
+        <div className="flex items-center gap-3 p-2.5 mb-2 bg-slate-50 border border-slate-200 rounded-2xl shadow-sm animate-in fade-in slide-in-from-bottom-2">
+            <div className="w-12 h-12 rounded-xl overflow-hidden bg-slate-200 flex items-center justify-center shrink-0 border border-slate-300/50">
                 {isImage ? <img src={URL.createObjectURL(file)} className="w-full h-full object-cover" alt="Preview" />
                     : isVideo ? <svg className="w-6 h-6 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
                         : <svg className="w-6 h-6 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path></svg>}
@@ -416,7 +416,7 @@ export const AttachmentPreview = React.memo(({ file, onRemove }) => {
                 <p className="text-sm font-semibold text-slate-700 truncate">{file.name}</p>
                 <p className="text-xs text-slate-500">{(file.size / 1024 / 1024).toFixed(1)} MB</p>
             </div>
-            <button type="button" onClick={onRemove} className="p-2 text-slate-400 hover:text-red-500 bg-white rounded-full shadow-sm hover:shadow transition-all focus:outline-none">
+            <button type="button" onClick={onRemove} className="p-2.5 text-slate-400 hover:text-red-500 bg-white rounded-full shadow-sm hover:shadow transition-all focus:outline-none">
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
             </button>
         </div>
@@ -439,7 +439,7 @@ export const GifMessage = React.memo(({ attachment, isDeleted, isPending, isErro
             <UploadStateOverlay isPending={isPending} isError={isError} progress={0} onRetry={onRetry} />
 
             {/* Small GIF badge in the corner to distinguish from static images */}
-            <span className="absolute top-2 left-2 bg-black/40 backdrop-blur-sm text-white text-[9px] font-bold px-1.5 py-0.5 rounded shadow-sm border border-white/10 pointer-events-none">
+            <span className="absolute top-2 left-2 bg-black/45 backdrop-blur-sm text-white text-[9.5px] font-bold px-2 py-0.5 rounded-md shadow-sm border border-white/10 pointer-events-none tracking-wide">
                 GIF
             </span>
         </div>

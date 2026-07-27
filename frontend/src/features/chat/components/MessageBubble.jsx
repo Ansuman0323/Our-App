@@ -104,18 +104,20 @@ export const MessageBubble = React.memo(({ message, isMine, isConsecutive, deliv
 
     const bubbleStyle = isDeleted
         ? (isMine ? 'bg-slate-200 text-slate-500' : 'bg-slate-100 text-slate-500')
-        : (isMine ? 'bg-indigo-600 text-white shadow-sm' : 'bg-white text-slate-800 border border-slate-100 shadow-sm');
+        : (isMine
+            ? 'bg-indigo-600 text-white shadow-[0_1px_2px_rgba(79,70,229,0.18),0_4px_12px_rgba(79,70,229,0.16)]'
+            : 'bg-white text-slate-800 border border-slate-100 shadow-[0_1px_2px_rgba(15,23,42,0.05),0_2px_10px_rgba(15,23,42,0.04)]');
 
     const tickColorClass = isMine ? 'text-indigo-200' : 'text-slate-400';
 
     return (
-        <div className={`flex w-full ${isMine ? 'justify-end' : 'justify-start'} ${isConsecutive ? 'mb-1' : 'mb-3 mt-2'} group animate-in slide-in-from-bottom-2 fade-in duration-300 relative`}>
+        <div className={`flex w-full ${isMine ? 'justify-end' : 'justify-start'} ${isConsecutive ? 'mb-0.5' : 'mb-2.5 mt-1'} group animate-in slide-in-from-bottom-2 fade-in duration-300 relative`}>
 
             {/* NEW: Reply curved arrow icon fixed to the left of the chat window */}
             {canSwipe && (
                 <div
                     ref={iconRef}
-                    className="absolute left-2 top-1/2 flex items-center justify-center w-8 h-8 rounded-full text-slate-500 z-0 pointer-events-none opacity-0"
+                    className="absolute left-2 top-1/2 flex items-center justify-center w-8 h-8 rounded-full bg-white shadow-sm text-slate-500 z-0 pointer-events-none opacity-0"
                     style={{ transform: 'translateY(-50%) scale(0.5)' }}
                 >
                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -126,7 +128,7 @@ export const MessageBubble = React.memo(({ message, isMine, isConsecutive, deliv
 
             <div
                 ref={setRefs}
-                className={`flex flex-col items-end max-w-[85%] md:max-w-[65%] select-none md:select-auto ${!isDeleted ? 'cursor-pointer' : 'cursor-default'} z-10`}
+                className={`flex flex-col items-end max-w-[82%] md:max-w-[65%] select-none md:select-auto ${!isDeleted ? 'cursor-pointer' : 'cursor-default'} z-10`}
                 style={{ touchAction: 'pan-y' }} // Natively delegates vertical scrolling to the browser
                 onTouchStart={handleTouchStart}
                 onTouchMove={handleTouchMove}
@@ -142,9 +144,9 @@ export const MessageBubble = React.memo(({ message, isMine, isConsecutive, deliv
                         ${isPending ? 'opacity-90' : ''} 
                         ${isError ? 'bg-red-500 text-white border-red-600' : ''}
                         rounded-2xl
-                        ${isMine ? (isConsecutive ? 'rounded-tr-md' : 'rounded-br-sm') : ''}
-                        ${!isMine ? (isConsecutive ? 'rounded-tl-md' : 'rounded-bl-sm') : ''}
-                        ${isMediaAttachment ? '' : 'px-3.5 py-2 md:px-4 md:py-2.5'}
+                        ${isMine ? (isConsecutive ? 'rounded-tr-md' : 'rounded-br-md') : ''}
+                        ${!isMine ? (isConsecutive ? 'rounded-tl-md' : 'rounded-bl-md') : ''}
+                        ${isMediaAttachment ? '' : 'px-4 py-2.5 md:px-4 md:py-2.5'}
                     `}
                 >
                     {message.reply && (
@@ -155,7 +157,7 @@ export const MessageBubble = React.memo(({ message, isMine, isConsecutive, deliv
                             }}
                             role="button"
                             tabIndex={0}
-                            className={`relative rounded-lg p-2 border-l-4 text-left flex flex-col justify-center transition-colors duration-300 cursor-pointer focus:outline-none focus:ring-2 focus:ring-white/50 overflow-hidden min-w-0 max-h-[80px] ${isMediaAttachment ? 'mx-2.5 mt-2.5 mb-1.5' : 'mb-1.5'} ${isDeleted
+                            className={`relative rounded-xl p-2.5 border-l-4 text-left flex flex-col justify-center transition-colors duration-300 cursor-pointer focus:outline-none focus:ring-2 focus:ring-white/50 overflow-hidden min-w-0 max-h-[80px] ${isMediaAttachment ? 'mx-2.5 mt-2.5 mb-1.5' : 'mb-2'} ${isDeleted
                                 ? 'bg-black/5 border-slate-300 hover:bg-black/10'
                                 : (isMine ? 'bg-black/10 border-indigo-300 hover:bg-black/20' : 'bg-slate-100 border-indigo-500 hover:bg-slate-200')
                                 }`}
@@ -217,7 +219,7 @@ export const MessageBubble = React.memo(({ message, isMine, isConsecutive, deliv
                                 message.content
                             )}
 
-                            <span className={`float-right inline-flex items-center gap-1 ml-3 mt-2 text-[10px] md:text-[11px] font-medium transition-colors duration-300 ${isDeleted ? 'text-slate-400' : (isMine ? 'text-indigo-200' : 'text-slate-400')}`}>
+                            <span className={`float-right inline-flex items-center gap-1 ml-3 mt-2 text-[11px] font-medium transition-colors duration-300 ${isDeleted ? 'text-slate-400' : (isMine ? 'text-indigo-200' : 'text-slate-400')}`}>
                                 {isEdited && <span className="italic opacity-90">Edited</span>}
                                 {timeString}
 
@@ -245,7 +247,7 @@ export const MessageBubble = React.memo(({ message, isMine, isConsecutive, deliv
                                             e.stopPropagation();
                                             onToggleReaction?.(message, group.emoji);
                                         }}
-                                        className={`flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[11px] font-medium transition-colors shadow-sm ${iReacted
+                                        className={`flex items-center gap-1 px-2 py-1 rounded-full text-[11px] font-medium transition-colors shadow-sm ${iReacted
                                             ? (isMine ? 'bg-white/20 text-white' : 'bg-indigo-100 border border-indigo-200 text-indigo-800')
                                             : (isMine ? 'bg-black/10 text-indigo-100 hover:bg-black/20' : 'bg-white/90 border border-slate-200 text-slate-600 hover:bg-slate-100')
                                             }`}
