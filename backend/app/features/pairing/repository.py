@@ -56,26 +56,4 @@ class PairingRepository:
         self.session.add(member)
         self.session.flush()
     
-    def get_partner(self, user_id):
-        membership = self.get_space_membership(user_id)
-
-        if not membership:
-            return None
-
-        partner_membership = self.get_partner_membership(
-            membership.space_id,
-            user_id,
-        )
-
-        if not partner_membership:
-            return None
-
-        partner = partner_membership.user
-
-        return {
-            "id": str(partner.id),
-            "display_name": partner.display_name,
-            "avatar_url": partner.avatar_url,
-            "email": partner.email,
-            "status": "online" if getattr(partner, "is_online", False) else "offline",
-        }
+    
