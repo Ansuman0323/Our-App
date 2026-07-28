@@ -32,10 +32,6 @@ export const IncomingCallModal = memo(() => {
     const isIncoming = callState === CallState.INCOMING;
 
     // --- Animation lifecycle -------------------------------------------------
-    // We can't just `return null` the instant callState leaves INCOMING, or the
-    // exit transition never gets a chance to run. `renderState` tracks the
-    // component's own visual phase independently of the FSM state so we can
-    // stay mounted just long enough to fade out.
     const [renderState, setRenderState] = useState(isIncoming ? 'visible' : 'hidden');
     const exitTimeoutRef = useRef(null);
 
@@ -45,9 +41,6 @@ export const IncomingCallModal = memo(() => {
                 clearTimeout(exitTimeoutRef.current);
                 exitTimeoutRef.current = null;
             }
-            // Mount immediately, then flip to 'visible' on the next frame so the
-            // CSS transition from the 'entering' state actually has something to
-            // animate from.
             setRenderState('entering');
             const raf = requestAnimationFrame(() => setRenderState('visible'));
             return () => cancelAnimationFrame(raf);
@@ -67,12 +60,8 @@ export const IncomingCallModal = memo(() => {
     }, [isIncoming]);
 
     // --- Action locking --------------------------------------------------------
-    // try/finally guarantees isProcessing always clears, even if acceptCall /
-    // rejectCall throws. We also reset it whenever the FSM (re)enters INCOMING,
-    // covering the case where it briefly bounces back (e.g. accept failed
-    // upstream and the caller is still ringing).
     const [isProcessing, setIsProcessing] = useState(false);
-    const [pendingAction, setPendingAction] = useState(null); // 'accept' | 'reject' | null
+    const [pendingAction, setPendingAction] = useState(null);
 
     useEffect(() => {
         if (isIncoming) {
@@ -88,9 +77,6 @@ export const IncomingCallModal = memo(() => {
         try {
             await actionFn();
         } catch (err) {
-            // Presentation layer doesn't own error handling/business logic -
-            // CallContext is expected to surface failures via callState. We only
-            // guarantee the buttons come back to life.
             console.error(`IncomingCallModal: ${actionName} failed`, err);
         } finally {
             setIsProcessing(false);
@@ -133,15 +119,6 @@ export const IncomingCallModal = memo(() => {
                 first.focus();
             }
         }
-
-        // REFINEMENT 3 decision: Escape is intentionally ignored.
-        //
-        // Rejecting a call is a destructive, irreversible action (a missed call
-        // from another person). Escape is frequently pressed reflexively or by
-        // accident, and unlike a form dialog, there's no "undo" - the caller has
-        // already been told no. We only let Escape close things that can be
-        // safely reopened; hanging up on someone doesn't qualify. The explicit
-        // Reject button remains the only way to decline.
     }, []);
 
     // --- Avatar fallback --------------------------------------------------------
@@ -150,7 +127,6 @@ export const IncomingCallModal = memo(() => {
     const initials = useMemo(() => getInitials(displayName), [displayName]);
     const hasAvatarUrl = Boolean(partnerProfile?.avatarUrl) && !avatarErrored;
 
-    // Reset the "errored" flag if we get a new avatar URL to try.
     useEffect(() => {
         setAvatarErrored(false);
     }, [partnerProfile?.avatarUrl]);
@@ -174,7 +150,17 @@ export const IncomingCallModal = memo(() => {
             onKeyDown={handleKeyDown}
         >
             <div className="modal-content">
-                <h2 id="incoming-call-title">Incoming Call</h2>
+
+                {/* Structural Addition for Presentation Only */}
+                <div className="title-group">
+                    <h2 id="incoming-call-title">Incoming Call</h2>
+                    <div className="call-type-indicator" aria-hidden="true" style={{ pointerEvents: 'none' }}>
+                        <svg className="camera-icon" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M17 10.5V7c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1v10c0 .55.45 1 1 1h12c.55 0 1-.45 1-1v-3.5l4 4v-11l-4 4z" />
+                        </svg>
+                        <span>Video Call</span>
+                    </div>
+                </div>
 
                 <div className="caller-info">
                     {hasAvatarUrl ? (
@@ -192,8 +178,6 @@ export const IncomingCallModal = memo(() => {
                     <p>{displayName}</p>
                 </div>
 
-                {/* Polite live region: announces processing state to screen readers
-                    without interrupting them mid-sentence the way assertive would. */}
                 <p id="incoming-call-status" className="sr-only" aria-live="polite">
                     {isProcessing
                         ? pendingAction === 'accept'

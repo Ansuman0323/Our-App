@@ -129,17 +129,6 @@ export class CallEngine extends EventEmitter {
             return this.localStream;
 
         } catch (err) {
-
-            console.error("❌ getUserMedia FAILED");
-            console.error("name =", err.name);
-            console.error("message =", err.message);
-            console.error(err);
-
-            this.emit("engine:error", {
-                type: "media_permission_denied",
-                originalError: err
-            });
-
             throw err;
         }
     }

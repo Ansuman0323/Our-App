@@ -4,6 +4,7 @@ export const initialCallState = {
     callState: CallState.IDLE,
     callId: null,
     partnerId: null,
+    partnerProfile: null,
     isInitiator: false,
 
     localStream: null,
@@ -33,6 +34,7 @@ export const callReducer = (state, action) => {
                 callState: CallState.INCOMING,
                 callId: action.payload.callId,
                 partnerId: action.payload.partnerId,
+                partnerProfile: action.payload.partnerProfile ?? null,
                 isInitiator: false
             };
 

@@ -36,6 +36,7 @@ export const CallProvider = ({ children }) => {
     }, []);
 
     const resetContext = useCallback(() => {
+        console.log("RESET CONTEXT");
         timersRef.current.clearAll();
         if (engineRef.current) {
             unbindEngineEvents(engineRef.current);
@@ -91,6 +92,10 @@ export const CallProvider = ({ children }) => {
     }, [handleOrchestrationFailure]);
 
     const getEngine = useCallback(() => {
+        console.log(
+            "ENGINE EXISTS?",
+            !!engineRef.current
+        );
         if (!engineRef.current) {
             engineRef.current = new CallEngine(true);
             bindEngineEvents(engineRef.current);
@@ -133,7 +138,17 @@ export const CallProvider = ({ children }) => {
             await getEngine().startLocalMedia();
             socketEmittersRef.current.emitAcceptCall?.({ call_id: state.callId });
         } catch (err) {
-            dispatch({ type: 'SET_ERROR', payload: normalizeEngineError(err, 'media_denied') });
+
+            dispatch({
+                type: "SET_ERROR",
+                payload: err.message
+            });
+
+            emitFailedCall({
+                call_id: state.callId,
+                reason: "media_unavailable"
+            });
+
             handleOrchestrationFailure();
         }
     }, [state.callState, state.callId, getEngine, handleOrchestrationFailure]);
@@ -188,7 +203,22 @@ export const CallProvider = ({ children }) => {
 
     const handleIncomingCall = useCallback((payload) => {
         if (state.callState !== CallState.IDLE) return false;
-        dispatch({ type: 'RECEIVE_INCOMING', payload: { callId: payload.call_id, partnerId: payload.caller_id } });
+        dispatch({
+            type: 'RECEIVE_INCOMING',
+            payload: {
+                callId: payload.call_id,
+                partnerId: payload.caller_id,
+                // PHASE 3: Caller identity now travels with the call:start signal itself
+                // (backend enriches the relay from the authenticated sender_id), so no
+                // extra REST lookup is needed here. Fields fall back to null/'online'
+                // if an older backend hasn't been redeployed yet.
+                partnerProfile: {
+                    displayName: payload.caller_name ?? null,
+                    avatarUrl: payload.caller_avatar ?? null,
+                    status: payload.caller_status ?? 'online'
+                }
+            }
+        });
         timersRef.current.start('ring', resetContext, TIMEOUTS.RINGING_TIMEOUT);
         return true;
     }, [state.callState, resetContext]);

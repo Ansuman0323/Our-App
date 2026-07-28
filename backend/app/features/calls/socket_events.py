@@ -9,6 +9,8 @@ from app.features.calls.services.call_registry import (
     ParticipantState,
 )
 from app.features.calls.config import DISCONNECT_GRACE_SECONDS
+from app.extensions import db
+from app.models.user import User
 import os
 
 logger = logging.getLogger(__name__)
@@ -47,6 +49,23 @@ def validate_ice(payload):
 # ==========================================
 # RELAY LOGIC
 # ==========================================
+
+def get_caller_display_info(user_id):
+    """
+    Minimal PK lookup to enrich the call:start relay with caller identity.
+    Reuses the already-authenticated sender_id from the socket session;
+    no additional REST round trip, no new tables/columns required since
+    User already carries display_name and avatar_url.
+    """
+    if not user_id:
+        return None, None
+
+    user = db.session.query(User).filter_by(id=user_id).first()
+    if not user:
+        return None, None
+
+    return user.display_name, user.avatar_url
+
 
 def log_call(event_name, call_id, caller_id, room, state, msg=""):
     log_msg = f"[CALL] call_id={call_id} caller={caller_id} room={room} event={event_name} state={state}"
@@ -282,10 +301,15 @@ Participants  : {list(call.participants.keys())}
 """
     )
 
+    caller_name, caller_avatar = get_caller_display_info(sender_id)
+
     relay_payload = {
         **payload,
         "sender_id": sender_id,
         "caller_id": sender_id,
+        "caller_name": caller_name,
+        "caller_avatar": caller_avatar,
+        "caller_status": "online",
     }
 
     log_call(
