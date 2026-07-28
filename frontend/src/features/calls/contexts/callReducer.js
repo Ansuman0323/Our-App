@@ -3,6 +3,7 @@ import { CallState, canTransition } from '../utils/fsm';
 export const initialCallState = {
     callState: CallState.IDLE,
     callId: null,
+    callType: null,
     partnerId: null,
     partnerProfile: null,
     isInitiator: false,
@@ -25,7 +26,8 @@ export const callReducer = (state, action) => {
                 callState: CallState.OUTGOING,
                 callId: action.payload.callId,
                 partnerId: action.payload.partnerId,
-                isInitiator: true
+                isInitiator: true,
+                callType: action.payload.callType
             };
 
         case 'RECEIVE_INCOMING':
@@ -35,7 +37,8 @@ export const callReducer = (state, action) => {
                 callId: action.payload.callId,
                 partnerId: action.payload.partnerId,
                 partnerProfile: action.payload.partnerProfile ?? null,
-                isInitiator: false
+                isInitiator: false,
+                callType: action.payload.callType
             };
 
         case 'TRANSITION':

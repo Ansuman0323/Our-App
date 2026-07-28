@@ -103,12 +103,29 @@ def handle_call_reconcile(payload):
         return 
 
     call = registry.get_call(room)
-    
+
+    logger.info(
+        f"[CALL RECONCILE] user={user_id} room={room} socket_sid={socket_sid} "
+        f"incoming_session_id={session_id} client_call_state={call_state} "
+        f"active_call_id={active_call_id} "
+        f"registry_call_id={call.call_id if call else None} "
+        f"registry_state={call.state.value if call else None}"
+    )
+
     if call_state == 'IDLE' or not active_call_id:
         if call and registry.has_participant(room, user_id):
             participant = registry.get_participant(room, user_id)
-            if participant.session_id != session_id:
-                logger.info(f"Reconciliation: Browser refresh detected for {user_id}. Cleaning up room {room}.")
+            # A None stored session_id means this participant was never
+            # bound to a real session (e.g. pre-registered callee, or a
+            # participant whose accept-time binding hasn't landed yet).
+            # That is NOT evidence of a competing session — only a genuine
+            # mismatch against a previously-bound session_id counts.
+            if participant.session_id is not None and participant.session_id != session_id:
+                logger.info(
+                    f"[CALL RECONCILE] Stale/replaced session for user={user_id} room={room} "
+                    f"stored_session_id={participant.session_id} incoming_session_id={session_id}. "
+                    f"Cleaning up call_id={call.call_id}."
+                )
                 emit('call:failed', {'call_id': call.call_id, 'reason': 'session_replaced'}, room=room, include_self=False)
                 registry.remove_call(room)
         return
@@ -121,8 +138,20 @@ def handle_call_reconcile(payload):
     if not participant:
         return
 
-    if participant.session_id == session_id:
-        logger.info(f"Reconciliation: Seamless reconnect for {user_id} in room {room}.")
+    # Treat this as the participant's own reconnect unless we have positive
+    # evidence of a different, already-bound session_id for this user.
+    # participant.session_id == None happens whenever nothing has bound a
+    # real session_id to this participant yet (e.g. the callee's session_id/
+    # socket_sid were never persisted after call:accept in older behavior) —
+    # that must never be treated as "another device is using this call".
+    is_same_session = participant.session_id is None or participant.session_id == session_id
+
+    if is_same_session:
+        logger.info(
+            f"[CALL RECONCILE] Seamless reconnect: user={user_id} room={room} "
+            f"call_id={active_call_id} session_id={session_id} socket_sid={socket_sid} "
+            f"prior_socket_sid={participant.socket_sid}"
+        )
         registry.update_participant(
             room_name=room, 
             user_id=user_id, 
@@ -132,16 +161,17 @@ def handle_call_reconcile(payload):
         )
         socketio.server.enter_room(socket_sid, room)
     else:
-        logger.info(f"Reconciliation: Duplicate tab detected for {user_id}. Invoking Last-In Wins.")
+        logger.info(
+            f"[CALL RECONCILE] Duplicate session detected for user={user_id} room={room}: "
+            f"stored_session_id={participant.session_id} incoming_session_id={session_id}. "
+            f"Invoking Last-In-Wins for call_id={active_call_id}."
+        )
         emit('call:failed', {'call_id': active_call_id, 'reason': 'session_replaced'}, room=room, include_self=False)
         emit('call:failed', {'call_id': active_call_id, 'reason': 'session_replaced'}, to=socket_sid)
         registry.remove_call(room)
 
 @socketio.on("call:start")
 def handle_call_start(payload):
-    print("########################")
-    print("CALL START RECEIVED")
-    print(payload)
     logger.info(f"[CALL START] Caller {session.get('user_id')} triggered start on Worker PID: {os.getpid()}")
     
     if not validate_base_payload(payload):
@@ -161,12 +191,28 @@ def handle_call_start(payload):
         logger.warning("[CALL] Missing room or sender_id")
         return
 
-    logger.info(f"=== CALL START ===\nCaller: {sender_id}\nCallee: {callee_id}\nType: {call_type}\nCall ID: {call_id}\n==================")
+    logger.info(
+        f"[CALL START] room={room} caller={sender_id} callee={callee_id} "
+        f"call_type={call_type} call_id={call_id} session_id={session_id} socket_sid={socket_sid}"
+    )
 
+    # Fix 4: a stale/terminal call left in the registry must never
+    # permanently block the room. Evict it up front so a genuinely idle
+    # room is always available for a new call, instead of only checking
+    # raw presence of an entry.
     existing = registry.get_call(room)
+    if existing and existing.state in {CallState.ENDED, CallState.FAILED}:
+        logger.info(
+            f"[CALL START] Evicting stale terminal call call_id={existing.call_id} "
+            f"state={existing.state.value} room={room} before creating new call"
+        )
+        registry.remove_call(room)
+        existing = None
 
     if existing:
-        logger.warning(f"[CALL] Room busy. Existing: {existing.call_id}")
+        logger.warning(
+            f"[CALL] Room busy. Existing call_id={existing.call_id} state={existing.state.value} room={room}"
+        )
         emit("call:busy", {"call_id": call_id, "reason": "already_active"}, to=socket_sid)
         return
 
@@ -217,7 +263,64 @@ def handle_call_ringing(payload):
 
 @socketio.on('call:accept')
 def handle_call_accept(payload):
-    relay_call_event('call:accept', payload, validate_base_payload, new_state=CallState.CONNECTING)
+    if not validate_base_payload(payload):
+        logger.warning("[CALL] Invalid call:accept payload")
+        return
+
+    room = session.get("room_name")
+    sender_id = session.get("user_id")  # this is the callee: the person accepting
+    socket_sid = request.sid
+    call_id = payload.get("call_id")
+    session_id = payload.get("session_id")
+
+    if not room or not sender_id:
+        logger.warning("[CALL] call:accept missing room or sender_id")
+        return
+
+    call = registry.get_call(room)
+    if not call or call.call_id != call_id:
+        logger.warning(
+            f"[CALL] call:accept for unknown/mismatched call. payload_call_id={call_id} "
+            f"registry_call_id={call.call_id if call else None} room={room}"
+        )
+        return
+
+    # Fix 1: persist the accepting participant's REAL session_id/socket_sid.
+    # Without this, the callee's participant record keeps the None/None
+    # placeholders from call:start's pre-registration for the entire call,
+    # which later makes every reconcile() comparison against this
+    # participant spuriously fail.
+    existing_participant = registry.get_participant(room, sender_id)
+    role = existing_participant.role if existing_participant else ParticipantRole.CALLEE
+
+    updated_call = registry.update_participant(
+        room_name=room,
+        user_id=sender_id,
+        session_id=session_id,
+        socket_sid=socket_sid,
+        role=role,
+        state=ParticipantState.CONNECTED,
+    )
+    if not updated_call:
+        logger.warning(f"[CALL] Failed to persist participant on accept: user={sender_id} room={room} call_id={call_id}")
+        return
+
+    updated_call = registry.update_state(room, CallState.CONNECTING)
+    if not updated_call:
+        logger.warning(f"[CALL] Illegal state transition on call:accept for call_id={call_id} room={room}")
+        return
+
+    relay_payload = {
+        **payload,
+        "sender_id": sender_id,
+        "caller_id": updated_call.caller_id
+    }
+
+    log_call(
+        'call:accept', updated_call.call_id, updated_call.caller_id, room, updated_call.state.value,
+        f"accepted_by={sender_id} session_id={session_id} socket_sid={socket_sid}"
+    )
+    emit('call:accept', relay_payload, room=room, include_self=False)
 
 @socketio.on('call:busy')
 def handle_call_busy(payload):
@@ -255,12 +358,23 @@ def _handle_disconnect_timeout(room, call_id, user_id, disconnected_sid):
     socketio.sleep(DISCONNECT_GRACE_SECONDS)
     
     call = registry.get_call(room)
-    if not call or call.call_id != call_id: return 
+    if not call or call.call_id != call_id:
+        logger.info(
+            f"[CALL DISCONNECT TIMEOUT] room={room} call_id={call_id} user={user_id} "
+            f"no-op: call already gone or replaced"
+        )
+        return
         
     participant = registry.get_participant(room, user_id)
     if not participant: return
         
-    if participant.socket_sid != disconnected_sid: return 
+    if participant.socket_sid != disconnected_sid:
+        logger.info(
+            f"[CALL DISCONNECT TIMEOUT] room={room} call_id={call_id} user={user_id} "
+            f"no-op: participant reconnected with new socket_sid={participant.socket_sid} "
+            f"(disconnected_sid={disconnected_sid})"
+        )
+        return 
 
     updated_call = registry.update_state(room, CallState.FAILED)
     if not updated_call: return
@@ -273,6 +387,7 @@ def _handle_disconnect_timeout(room, call_id, user_id, disconnected_sid):
         "reason": "network_disconnect"
     }, room=room)
     registry.remove_call(room)
+    logger.info(f"[CALL DISCONNECT TIMEOUT] room={room} call_id={call_id} removed after grace period")
 
 @socketio.on('disconnect')
 def handle_call_disconnect():
@@ -282,6 +397,10 @@ def handle_call_disconnect():
 
     call = registry.get_call(room)
     if call:
+        logger.info(
+            f"[CALL] disconnect scheduling timeout check: room={room} call_id={call.call_id} "
+            f"user={user_id} socket_sid={socket_sid} grace={DISCONNECT_GRACE_SECONDS}s"
+        )
         socketio.start_background_task(
             _handle_disconnect_timeout, 
             room, 

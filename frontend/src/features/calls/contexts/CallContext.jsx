@@ -176,7 +176,6 @@ export const CallProvider = ({ children }) => {
         });
 
         timersRef.current.start('ring', resetContext, TIMEOUTS.RINGING_TIMEOUT);
-        // ... (rest remains unchanged)
 
         chatApi.getPartner()
             .then((partner) => {

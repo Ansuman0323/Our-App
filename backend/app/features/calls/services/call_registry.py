@@ -35,6 +35,9 @@ ALLOWED_TRANSITIONS = {
     CallState.FAILED: set()
 }
 
+# States in which a call is considered "over" and must never block a new call.
+TERMINAL_STATES = {CallState.ENDED, CallState.FAILED}
+
 @dataclass
 class CallParticipant:
     user_id: str
@@ -91,7 +94,25 @@ class MemoryCallRegistry(CallRegistryBase):
 
     def create_call(self, call_id: str, caller_id: str, room_name: str, caller_session_id: Optional[str] = None, caller_sid: Optional[str] = None) -> Optional[ActiveCall]:
         with self._lock:
+            # Defense-in-depth: if a previous call in this room is terminal
+            # (ENDED/FAILED) but was never popped, evict it now rather than
+            # letting it linger. _is_busy_unsafe already excludes terminal
+            # states, so this only ever removes dead entries.
+            stale = self._calls.get(room_name)
+            if stale and stale.state in TERMINAL_STATES:
+                logger.info(
+                    f"[REGISTRY] create_call: evicting stale terminal call "
+                    f"call_id={stale.call_id} room={room_name} state={stale.state.value}"
+                )
+                del self._calls[room_name]
+
             if self._is_busy_unsafe(room_name):
+                existing = self._calls.get(room_name)
+                logger.warning(
+                    f"[REGISTRY] create_call blocked: room={room_name} already busy "
+                    f"with call_id={existing.call_id if existing else '?'} "
+                    f"state={existing.state.value if existing else '?'}"
+                )
                 return None
             
             call = ActiveCall(call_id=call_id, room_name=room_name, state=CallState.RINGING, caller_id=caller_id)
@@ -105,6 +126,11 @@ class MemoryCallRegistry(CallRegistryBase):
             )
             
             self._calls[room_name] = call
+            logger.info(
+                f"[REGISTRY] create_call: room={room_name} call_id={call_id} "
+                f"caller={caller_id} session_id={caller_session_id} socket_sid={caller_sid} "
+                f"state={call.state.value}"
+            )
             return call
 
     def get_call(self, room_name: str) -> Optional[ActiveCall]:
@@ -123,6 +149,10 @@ class MemoryCallRegistry(CallRegistryBase):
                 
             call.state = new_state
             call.version += 1
+            logger.info(
+                f"[REGISTRY] update_state: room={room_name} call_id={call.call_id} "
+                f"state={call.state.value} version={call.version}"
+            )
             return call
 
     def update_participant(self, room_name: str, user_id: str, session_id: str, socket_sid: str, role: Optional[ParticipantRole] = None, state: Optional[ParticipantState] = None) -> Optional[ActiveCall]:
@@ -153,6 +183,12 @@ class MemoryCallRegistry(CallRegistryBase):
                 )
             
             call.version += 1
+            logger.info(
+                f"[REGISTRY] update_participant: room={room_name} call_id={call.call_id} "
+                f"user={user_id} session_id={session_id} socket_sid={socket_sid} "
+                f"role={call.participants[user_id].role.value} "
+                f"participant_state={call.participants[user_id].state.value} version={call.version}"
+            )
             return call
 
     def remove_participant(self, room_name: str, user_id: str) -> Optional[ActiveCall]:
@@ -177,7 +213,15 @@ class MemoryCallRegistry(CallRegistryBase):
 
     def remove_call(self, room_name: str) -> Optional[ActiveCall]:
         with self._lock:
-            return self._calls.pop(room_name, None)
+            call = self._calls.pop(room_name, None)
+            if call:
+                logger.info(
+                    f"[REGISTRY] remove_call: room={room_name} call_id={call.call_id} "
+                    f"final_state={call.state.value}"
+                )
+            else:
+                logger.info(f"[REGISTRY] remove_call: room={room_name} no-op (already absent)")
+            return call
 
     def is_busy(self, room_name: str) -> bool:
         with self._lock:
