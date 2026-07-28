@@ -5,38 +5,26 @@ import { CallState } from '../utils/fsm';
 import { TimerManager } from '../utils/timerManager';
 import { normalizeEngineError } from '../utils/errorModel';
 import { callReducer, initialCallState } from './callReducer';
+import { chatApi } from '../../chat/api';
 
 const CallContext = createContext(null);
 
 export const CallProvider = ({ children }) => {
     const [state, dispatch] = useReducer(callReducer, initialCallState);
-
-    // --- PHASE 3: Deterministic Session Identity ---
-    // Generates once per DOM mount. Survives StrictMode double-renders and standard re-renders.
-    // Completely destroyed and regenerated only on F5 / browser refresh.
     const sessionId = useRef(crypto.randomUUID()).current;
 
-    // Core Dependencies
     const engineRef = useRef(null);
     const timersRef = useRef(new TimerManager());
-    const socketEmittersRef = useRef({}); // Registry for socket events
+    const socketEmittersRef = useRef({});
 
-    // Track the callId securely for engine callbacks to prevent stale closures
     const callIdRef = useRef(state.callId);
-    useEffect(() => {
-        callIdRef.current = state.callId;
-    }, [state.callId]);
-
-    // ==========================================
-    // CLEANUP & RESET (Hoisted for dependency injection)
-    // ==========================================
+    useEffect(() => { callIdRef.current = state.callId; }, [state.callId]);
 
     const unbindEngineEvents = useCallback((engine) => {
         if (engine) engine.clearListeners();
     }, []);
 
     const resetContext = useCallback(() => {
-        console.log("RESET CONTEXT");
         timersRef.current.clearAll();
         if (engineRef.current) {
             unbindEngineEvents(engineRef.current);
@@ -51,10 +39,6 @@ export const CallProvider = ({ children }) => {
         timersRef.current.start('reset', resetContext, 3000);
     }, [resetContext]);
 
-    // ==========================================
-    // ENGINE LIFECYCLE & EVENT BINDING
-    // ==========================================
-
     const bindEngineEvents = useCallback((engine) => {
         engine.on('media:localstream', stream => dispatch({ type: 'SET_LOCAL_STREAM', payload: stream }));
         engine.on('media:remotestream', stream => dispatch({ type: 'SET_REMOTE_STREAM', payload: stream }));
@@ -64,19 +48,14 @@ export const CallProvider = ({ children }) => {
             if (stream === 'remote') dispatch({ type: 'SET_REMOTE_STREAM', payload: engine.remoteStream });
         });
 
-        // Resolves the ICE Candidate Black Hole
         engine.on('ice:candidate', candidate => {
             if (callIdRef.current && socketEmittersRef.current.emitIceCandidate) {
-                socketEmittersRef.current.emitIceCandidate({
-                    call_id: callIdRef.current,
-                    candidate
-                });
+                socketEmittersRef.current.emitIceCandidate({ call_id: callIdRef.current, candidate });
             }
         });
 
         engine.on('connection:statechange', connState => {
             if (connState === 'connected') {
-                // FSM synchronized with actual WebRTC hardware state
                 dispatch({ type: 'TRANSITION', payload: CallState.CONNECTED });
                 dispatch({ type: 'SET_STARTED_AT', payload: Date.now() });
                 dispatch({ type: 'SET_QUALITY', payload: 'excellent' });
@@ -92,10 +71,6 @@ export const CallProvider = ({ children }) => {
     }, [handleOrchestrationFailure]);
 
     const getEngine = useCallback(() => {
-        console.log(
-            "ENGINE EXISTS?",
-            !!engineRef.current
-        );
         if (!engineRef.current) {
             engineRef.current = new CallEngine(true);
             bindEngineEvents(engineRef.current);
@@ -103,23 +78,19 @@ export const CallProvider = ({ children }) => {
         return engineRef.current;
     }, [bindEngineEvents]);
 
-    // ==========================================
-    // PUBLIC API (UI ACTIONS - DELEGATED TO HOOK)
-    // ==========================================
-
-    const startCall = useCallback(async (targetPartnerId) => {
+    const startCall = useCallback(async (targetPartnerId, callType = 'video') => {
         if (state.callState !== CallState.IDLE) return;
 
         const callId = crypto.randomUUID();
-        dispatch({ type: 'INITIATE_OUTGOING', payload: { callId, partnerId: targetPartnerId } });
+        dispatch({ type: 'INITIATE_OUTGOING', payload: { callId, partnerId: targetPartnerId, callType } });
 
         try {
-            await getEngine().startLocalMedia();
+            await getEngine().startLocalMedia(callType);
 
-            // PHASE 3 Fix: Pass callee_id explicitly so the backend knows who we are calling
             socketEmittersRef.current.emitStartCall?.({
                 call_id: callId,
-                callee_id: targetPartnerId
+                callee_id: targetPartnerId,
+                call_type: callType
             });
 
             timersRef.current.start('ring', handleOrchestrationFailure, TIMEOUTS.RINGING_TIMEOUT);
@@ -135,23 +106,14 @@ export const CallProvider = ({ children }) => {
         dispatch({ type: 'TRANSITION', payload: CallState.CONNECTING });
 
         try {
-            await getEngine().startLocalMedia();
+            await getEngine().startLocalMedia(state.callType);
             socketEmittersRef.current.emitAcceptCall?.({ call_id: state.callId });
         } catch (err) {
-
-            dispatch({
-                type: "SET_ERROR",
-                payload: err.message
-            });
-
-            emitFailedCall({
-                call_id: state.callId,
-                reason: "media_unavailable"
-            });
-
+            dispatch({ type: "SET_ERROR", payload: err.message });
+            socketEmittersRef.current.emitFailedCall?.({ call_id: state.callId, reason: "media_unavailable" });
             handleOrchestrationFailure();
         }
-    }, [state.callState, state.callId, getEngine, handleOrchestrationFailure]);
+    }, [state.callState, state.callId, state.callType, getEngine, handleOrchestrationFailure]);
 
     const rejectCall = useCallback(() => {
         if (state.callState !== CallState.INCOMING) return;
@@ -171,8 +133,6 @@ export const CallProvider = ({ children }) => {
         socketEmittersRef.current.emitEndCall?.({ call_id: state.callId });
         resetContext();
     }, [state.callState, state.callId, resetContext]);
-
-    // --- Media Controls ---
 
     const toggleMute = useCallback(() => {
         if (!engineRef.current) return;
@@ -197,29 +157,37 @@ export const CallProvider = ({ children }) => {
         }
     }, []);
 
-    // ==========================================
-    // PUBLIC API (SIGNALING BOUNDARIES)
-    // ==========================================
-
     const handleIncomingCall = useCallback((payload) => {
         if (state.callState !== CallState.IDLE) return false;
+
         dispatch({
             type: 'RECEIVE_INCOMING',
             payload: {
-                callId: payload.call_id,
-                partnerId: payload.caller_id,
-                // PHASE 3: Caller identity now travels with the call:start signal itself
-                // (backend enriches the relay from the authenticated sender_id), so no
-                // extra REST lookup is needed here. Fields fall back to null/'online'
-                // if an older backend hasn't been redeployed yet.
+                callId: payload.call_id || payload.callId,
+                partnerId: payload.caller_id || payload.callerId,
+                // Fix 1: Construct the profile from the backend payload so it doesn't default to Unknown Caller
                 partnerProfile: {
-                    displayName: payload.caller_name ?? null,
-                    avatarUrl: payload.caller_avatar ?? null,
-                    status: payload.caller_status ?? 'online'
-                }
+                    displayName: payload.caller_name || payload.callerName,
+                    avatarUrl: payload.caller_avatar || payload.callerAvatar
+                },
+                // Fix 2: Safely check both snake_case and camelCase to prevent the 'video' fallback
+                callType: payload.call_type || payload.callType || 'video'
             }
         });
+
         timersRef.current.start('ring', resetContext, TIMEOUTS.RINGING_TIMEOUT);
+        // ... (rest remains unchanged)
+
+        chatApi.getPartner()
+            .then((partner) => {
+                if (callIdRef.current === payload.call_id) {
+                    dispatch({ type: 'SET_PARTNER_PROFILE', payload: partner });
+                }
+            })
+            .catch((err) => {
+                console.error("Failed to fetch partner profile for incoming call", err);
+            });
+
         return true;
     }, [state.callState, resetContext]);
 
@@ -270,51 +238,28 @@ export const CallProvider = ({ children }) => {
 
     const handleRemoteTeardown = useCallback(() => {
         if (state.callState === CallState.IDLE) return;
-
-        // PHASE 3 Fix: Use FORCE_TRANSITION to prevent FSM warnings if 
-        // the FSM was already in FAILED when the remote teardown arrived.
         dispatch({ type: 'FORCE_TRANSITION', payload: CallState.ENDED });
         resetContext();
     }, [state.callState, resetContext]);
 
-    // ==========================================
-    // STABLE REGISTRY BINDING
-    // ==========================================
-    // Extracted from useMemo to prevent dependency thrashing
     const _registerEmitters = useCallback((emitters) => {
         socketEmittersRef.current = emitters;
     }, []);
 
-    // ==========================================
-    // LIFECYCLE MOUNTING
-    // ==========================================
     useEffect(() => {
-        return () => resetContext(); // Idempotent global unmount failsafe
+        return () => resetContext();
     }, [resetContext]);
-
-    // ==========================================
-    // EXPORT
-    // ==========================================
 
     const contextValue = useMemo(() => ({
         ...state,
-
-        // PHASE 3: Expose immutable session identity to the socket hook
         sessionId,
-
-        // UI Actions
         startCall, acceptCall, rejectCall, cancelCall, endCall,
         toggleMute, toggleCamera, switchCamera,
-
-        // Signaling Hooks Boundary (For useCallSocket)
         handleIncomingCall, handleCallAccepted, handleRemoteTeardown,
         handleOfferReceived, handleAnswerReceived, handleIceCandidate,
-
-        // Registry exposed for useCallSocket to inject emitters
         _registerEmitters
     }), [
-        state,
-        sessionId,
+        state, sessionId,
         startCall, acceptCall, rejectCall, cancelCall, endCall,
         toggleMute, toggleCamera, switchCamera,
         handleIncomingCall, handleCallAccepted, handleRemoteTeardown,

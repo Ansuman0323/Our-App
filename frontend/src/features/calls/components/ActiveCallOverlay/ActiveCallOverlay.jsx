@@ -1,5 +1,5 @@
-import React from 'react';
-import { useCall } from '../../contexts/CallContext'; // frozen — do not modify
+import React, { useMemo } from 'react';
+import { useCall } from '../../contexts/CallContext';
 import RemoteVideo from '../RemoteVideo/RemoteVideo';
 import LocalVideo from '../LocalVideo/LocalVideo';
 import CallControls from '../CallControls/CallControls';
@@ -9,12 +9,12 @@ import './ActiveCallOverlay.css';
 
 const VISIBLE_STATES = new Set(['CONNECTING', 'CONNECTED', 'ENDING']);
 
-/**
- * Composes the in-call UI from presentational children. Owns layout,
- * responsive shell, and overlay visibility only. All call logic lives
- * in CallContext — this component only reads from it and forwards
- * action callbacks down to children.
- */
+function getInitials(name) {
+    if (!name) return '?';
+    const parts = name.trim().split(/\s+/).slice(0, 2);
+    return parts.map((p) => p[0]?.toUpperCase() ?? '').join('') || '?';
+}
+
 function ActiveCallOverlay() {
     const {
         callState,
@@ -23,8 +23,10 @@ function ActiveCallOverlay() {
         cameraEnabled,
         micEnabled,
         connectionQuality,
-        duration,
+        callStartedAt,
         partnerName,
+        partnerProfile,
+        callType,
         toggleMute,
         toggleCamera,
         switchCamera,
@@ -35,21 +37,54 @@ function ActiveCallOverlay() {
         return null;
     }
 
+    const isVoice = callType === 'voice';
+    const initials = useMemo(() => getInitials(partnerName), [partnerName]);
+    const hasAvatar = Boolean(partnerProfile?.avatarUrl);
+
     return (
-        <div className="aco-overlay" data-call-state={callState.toLowerCase()}>
-            <RemoteVideo remoteStream={remoteStream} />
+        <div className="aco-overlay" data-call-state={callState.toLowerCase()} data-call-type={callType}>
 
-            <div className="aco-top-bar">
-                <div className="aco-top-left">
-                    <ConnectionIndicator quality={connectionQuality} />
-                    <CallDuration duration={duration} />
+            {/* Dynamic Rendering based on Call Type */}
+            {isVoice ? (
+                <div className="aco-voice-layout">
+                    <div className="aco-voice-status">
+                        <ConnectionIndicator quality={connectionQuality} />
+                    </div>
+
+                    <div className="aco-voice-center">
+                        <div className="aco-voice-avatar-wrapper">
+                            {hasAvatar ? (
+                                <img src={partnerProfile.avatarUrl} alt="" className="aco-voice-avatar" />
+                            ) : (
+                                <div className="aco-voice-avatar aco-voice-fallback">{initials}</div>
+                            )}
+                            <div className="aco-voice-ripple"></div>
+                            <div className="aco-voice-ripple delay"></div>
+                        </div>
+
+                        <h2 className="aco-voice-name">{partnerName || 'Unknown Caller'}</h2>
+                        <span className="aco-voice-subtitle">Voice Call</span>
+                        <div className="aco-voice-timer">
+                            <CallDuration callStartedAt={callStartedAt} />
+                        </div>
+                    </div>
                 </div>
-                <span className="aco-partner-name">{partnerName}</span>
-            </div>
-
-            <LocalVideo localStream={localStream} cameraEnabled={cameraEnabled} />
+            ) : (
+                <>
+                    <RemoteVideo remoteStream={remoteStream} />
+                    <div className="aco-top-bar">
+                        <div className="aco-top-left">
+                            <ConnectionIndicator quality={connectionQuality} />
+                            <CallDuration callStartedAt={callStartedAt} />
+                        </div>
+                        <span className="aco-partner-name">{partnerName}</span>
+                    </div>
+                    <LocalVideo localStream={localStream} cameraEnabled={cameraEnabled} />
+                </>
+            )}
 
             <CallControls
+                callType={callType}
                 micEnabled={micEnabled}
                 cameraEnabled={cameraEnabled}
                 onToggleMute={toggleMute}

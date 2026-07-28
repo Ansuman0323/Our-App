@@ -11,15 +11,10 @@ const EngineState = {
     DESTROYED: 'DESTROYED'
 };
 
-const MAX_ICE_BUFFER = 100; // Protection against malicious or malformed signaling
+const MAX_ICE_BUFFER = 100;
 
-/**
- * Lightweight Event Emitter to decouple the engine from UI frameworks.
- */
 class EventEmitter {
-    constructor() {
-        this.listeners = {};
-    }
+    constructor() { this.listeners = {}; }
     on(event, callback) {
         if (!this.listeners[event]) this.listeners[event] = [];
         this.listeners[event].push(callback);
@@ -32,43 +27,22 @@ class EventEmitter {
         if (!this.listeners[event]) return;
         this.listeners[event].forEach(cb => cb(data));
     }
-    clearListeners() {
-        this.listeners = {};
-    }
+    clearListeners() { this.listeners = {}; }
 }
 
-/**
- * CallEngine
- * A self-contained, React-agnostic WebRTC communication engine.
- */
 export class CallEngine extends EventEmitter {
     constructor(debugMode = false) {
         super();
-
-        // --- Core State ---
         this._state = EngineState.UNINITIALIZED;
         this.pc = null;
         this.localStream = null;
         this.remoteStream = new MediaStream();
-
-        // --- Perfect Negotiation Readiness (Architectural Placeholders) ---
-        this._pn = {
-            polite: false,
-            makingOffer: false,
-            ignoreOffer: false,
-            isSettingRemoteAnswerPending: false
-        };
-
-        // --- Internal Buffers & Caches ---
+        this._pn = { polite: false, makingOffer: false, ignoreOffer: false, isSettingRemoteAnswerPending: false };
         this.iceCandidateBuffer = [];
         this._lastStats = null;
         this._lastStatsTimestamp = 0;
         this.debugMode = debugMode;
     }
-
-    // ==========================================
-    // UTILITIES
-    // ==========================================
 
     _log(action, details = '') {
         if (!this.debugMode) return;
@@ -91,36 +65,22 @@ export class CallEngine extends EventEmitter {
         }
     }
 
-    // ==========================================
-    // MEDIA MANAGER
-    // ==========================================
-
-    async startLocalMedia(customConstraints = null) {
+    async startLocalMedia(callType = 'video', customConstraints = null) {
         this._assertState([EngineState.UNINITIALIZED], 'startLocalMedia');
 
-        console.log("========== MEDIA START ==========");
-        console.log("navigator.mediaDevices =", navigator.mediaDevices);
-        console.log("getUserMedia =", navigator.mediaDevices?.getUserMedia);
-
         try {
-            const constraints = customConstraints || DEFAULT_MEDIA_CONSTRAINTS;
+            let constraints = customConstraints
+                ? JSON.parse(JSON.stringify(customConstraints))
+                : JSON.parse(JSON.stringify(DEFAULT_MEDIA_CONSTRAINTS));
 
-            console.log("Constraints:", constraints);
+            if (callType === 'voice') {
+                constraints.video = false;
+            }
 
             this.localStream = await navigator.mediaDevices.getUserMedia(constraints);
 
-            console.log("✅ getUserMedia SUCCESS");
-            console.log("Tracks:", this.localStream.getTracks());
-
             this.localStream.getTracks().forEach(track => {
-                console.log(
-                    `${track.kind} enabled=${track.enabled} readyState=${track.readyState}`
-                );
-
-                this.emit("track:added", {
-                    stream: "local",
-                    track
-                });
+                this.emit("track:added", { stream: "local", track });
             });
 
             this._transitionState(EngineState.MEDIA_READY);
@@ -163,6 +123,10 @@ export class CallEngine extends EventEmitter {
 
     async switchCamera() {
         if (!this.localStream) return;
+
+        const videoTracks = this.localStream.getVideoTracks();
+        if (videoTracks.length === 0) return;
+
         try {
             const currentVideoTrack = this.localStream.getVideoTracks()[0];
             const currentSettings = currentVideoTrack.getSettings();
@@ -210,10 +174,6 @@ export class CallEngine extends EventEmitter {
             audioOutputs: devices.filter(d => d.kind === 'audiooutput').map(d => ({ id: d.deviceId, label: d.label || 'Speaker' }))
         };
     }
-
-    // ==========================================
-    // PEER CONNECTION MANAGER
-    // ==========================================
 
     createPeerConnection() {
         this._assertState([EngineState.MEDIA_READY, EngineState.UNINITIALIZED], 'createPeerConnection');
@@ -266,10 +226,6 @@ export class CallEngine extends EventEmitter {
             this.emit('ice:connectionstatechange', this.pc.iceConnectionState);
         };
     }
-
-    // ==========================================
-    // NEGOTIATION MANAGER
-    // ==========================================
 
     async createOffer() {
         this._assertState([EngineState.PEER_READY, EngineState.CONNECTED], 'createOffer');
@@ -360,10 +316,6 @@ export class CallEngine extends EventEmitter {
         this.pc.restartIce();
     }
 
-    // ==========================================
-    // STATS MANAGER
-    // ==========================================
-
     async getConnectionStats() {
         if (!this.pc) return null;
         try {
@@ -395,12 +347,11 @@ export class CallEngine extends EventEmitter {
 
                     const localCandidate = stats.get(stat.localCandidateId);
                     if (localCandidate) {
-                        normalized.connectionType = localCandidate.candidateType || 'unknown'; // 'host', 'srflx', 'relay'
+                        normalized.connectionType = localCandidate.candidateType || 'unknown';
                     }
                 }
             });
 
-            // Calculate Bitrate (kbps)
             if (this._lastStats && this._lastStatsTimestamp) {
                 const deltaBytes = bytesReceived - this._lastStats.bytesReceived;
                 const deltaTime = (now - this._lastStatsTimestamp) / 1000;
@@ -419,16 +370,11 @@ export class CallEngine extends EventEmitter {
         }
     }
 
-    // ==========================================
-    // CLEANUP MANAGER
-    // ==========================================
-
     destroy() {
         if (this._state === EngineState.DESTROYED || this._state === EngineState.DESTROYING) return;
         this._transitionState(EngineState.DESTROYING);
         this._log('Initiating engine teardown...');
 
-        // 1. Release local hardware explicitly
         if (this.localStream) {
             this.localStream.getTracks().forEach(track => {
                 track.stop();
@@ -437,7 +383,6 @@ export class CallEngine extends EventEmitter {
             this.localStream = null;
         }
 
-        // 2. Release remote tracks
         if (this.remoteStream) {
             this.remoteStream.getTracks().forEach(track => {
                 track.stop();
@@ -446,7 +391,6 @@ export class CallEngine extends EventEmitter {
             this.remoteStream = null;
         }
 
-        // 3. Teardown PeerConnection safely
         if (this.pc) {
             this.pc.getSenders().forEach(sender => {
                 if (sender.track) sender.track.stop();
@@ -461,15 +405,11 @@ export class CallEngine extends EventEmitter {
             this.pc = null;
         }
 
-        // 4. Clear internal buffers
         this.iceCandidateBuffer = [];
         this._lastStats = null;
 
-        // 5. Emit final event BEFORE clearing listeners
         this._transitionState(EngineState.DESTROYED);
         this.emit('engine:destroyed', null);
-
-        // 6. Complete Isolation
         this.clearListeners();
     }
 }

@@ -56,8 +56,8 @@ export const ChatPage = () => {
                 partnerName={partnerName}
                 status={partnerStatus}
                 isTyping={isPartnerTyping}
-                onStartCall={() => {
-                    if (partnerId) startCall(partnerId);
+                onStartCall={(type) => {
+                    if (partnerId) startCall(partnerId, type);
                 }}
                 canStartCall={!!partnerId}
             />

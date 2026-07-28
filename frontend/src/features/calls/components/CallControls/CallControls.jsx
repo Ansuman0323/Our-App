@@ -1,15 +1,8 @@
 import React from 'react';
 import './CallControls.css';
 
-/**
- * Row of call controls. Every button simply invokes a callback prop
- * that ActiveCallOverlay has bound to a CallContext method. No WebRTC
- * or socket logic lives here.
- *
- * Structured as a small config array so future buttons (Screen Share,
- * PiP, Recording) are additive.
- */
 function CallControls({
+    callType,
     micEnabled,
     cameraEnabled,
     onToggleMute,
@@ -17,6 +10,8 @@ function CallControls({
     onSwitchCamera,
     onEndCall,
 }) {
+    const isVoice = callType === 'voice';
+
     const buttons = [
         {
             key: 'mute',
@@ -25,6 +20,7 @@ function CallControls({
             onClick: onToggleMute,
             variant: 'default',
             icon: micEnabled ? '\u{1F3A4}' : '\u{1F507}',
+            show: true
         },
         {
             key: 'camera',
@@ -33,6 +29,7 @@ function CallControls({
             onClick: onToggleCamera,
             variant: 'default',
             icon: cameraEnabled ? '\u{1F4F9}' : '\u{1F6AB}',
+            show: !isVoice
         },
         {
             key: 'switch-camera',
@@ -41,6 +38,7 @@ function CallControls({
             onClick: onSwitchCamera,
             variant: 'default',
             icon: '\u{1F504}',
+            show: !isVoice
         },
         {
             key: 'end-call',
@@ -49,12 +47,13 @@ function CallControls({
             onClick: onEndCall,
             variant: 'danger',
             icon: '\u260E',
+            show: true
         },
     ];
 
     return (
         <div className="cc-controls" role="group" aria-label="Call controls">
-            {buttons.map((btn) => (
+            {buttons.filter(btn => btn.show).map((btn) => (
                 <button
                     key={btn.key}
                     type="button"

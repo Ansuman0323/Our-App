@@ -14,13 +14,7 @@ from app.models.user import User
 import os
 
 logger = logging.getLogger(__name__)
-
-# Single source of truth for all distributed call states
 registry = MemoryCallRegistry()
-
-# ==========================================
-# STRICT VALIDATORS
-# ==========================================
 
 def validate_base_payload(payload):
     return isinstance(payload, dict) and isinstance(payload.get("call_id"), str)
@@ -46,26 +40,13 @@ def validate_ice(payload):
     has_routing = ("sdpMid" in candidate) or ("sdpMLineIndex" in candidate)
     return has_candidate and has_routing
 
-# ==========================================
-# RELAY LOGIC
-# ==========================================
-
 def get_caller_display_info(user_id):
-    """
-    Minimal PK lookup to enrich the call:start relay with caller identity.
-    Reuses the already-authenticated sender_id from the socket session;
-    no additional REST round trip, no new tables/columns required since
-    User already carries display_name and avatar_url.
-    """
     if not user_id:
         return None, None
-
     user = db.session.query(User).filter_by(id=user_id).first()
     if not user:
         return None, None
-
     return user.display_name, user.avatar_url
-
 
 def log_call(event_name, call_id, caller_id, room, state, msg=""):
     log_msg = f"[CALL] call_id={call_id} caller={caller_id} room={room} event={event_name} state={state}"
@@ -87,14 +68,12 @@ def relay_call_event(event_name, payload, validator_func=None, new_state=None, t
     if not call or call.call_id != call_id:
         return
 
-    # Optional FSM Transition
     if new_state:
         updated_call = registry.update_state(room, new_state)
         if not updated_call: 
             return
         call = updated_call
 
-    # Immutable relay payload
     relay_payload = {
         **payload,
         "sender_id": sender_id,
@@ -107,10 +86,6 @@ def relay_call_event(event_name, payload, validator_func=None, new_state=None, t
     if terminate_call:
         registry.remove_call(room)
         log_call("cleanup", call.call_id, call.caller_id, room, "TERMINATED", "Call safely removed")
-
-# ==========================================
-# PHASE 3: DETERMINISTIC RECONCILIATION
-# ==========================================
 
 @socketio.on('call:reconcile')
 def handle_call_reconcile(payload):
@@ -125,27 +100,20 @@ def handle_call_reconcile(payload):
     socket_sid = request.sid
 
     if not session_id:
-        return # Legacy client
+        return 
 
     call = registry.get_call(room)
     
-    # CASE 1: Frontend is IDLE or initializing
     if call_state == 'IDLE' or not active_call_id:
         if call and registry.has_participant(room, user_id):
             participant = registry.get_participant(room, user_id)
             if participant.session_id != session_id:
-                # User refreshed their browser while in a call. Their WebRTC context is dead.
                 logger.info(f"Reconciliation: Browser refresh detected for {user_id}. Cleaning up room {room}.")
-                emit('call:failed', {
-                    'call_id': call.call_id,
-                    'reason': 'session_replaced'
-                }, room=room, include_self=False)
+                emit('call:failed', {'call_id': call.call_id, 'reason': 'session_replaced'}, room=room, include_self=False)
                 registry.remove_call(room)
         return
 
-    # CASE 2: Frontend believes it is in an active call, but registry is empty
     if not call or call.call_id != active_call_id:
-        # Backend restarted or call was already terminated. Force UI to reset.
         emit('call:failed', {'call_id': active_call_id, 'reason': 'session_replaced'}, to=socket_sid)
         return
 
@@ -153,7 +121,6 @@ def handle_call_reconcile(payload):
     if not participant:
         return
 
-    # CASE 3: Session Matches (Transient Network Reconnect)
     if participant.session_id == session_id:
         logger.info(f"Reconciliation: Seamless reconnect for {user_id} in room {room}.")
         registry.update_participant(
@@ -164,27 +131,11 @@ def handle_call_reconcile(payload):
             state=participant.state
         )
         socketio.server.enter_room(socket_sid, room)
-        
-    # CASE 4: Session Mismatch (Duplicate Tab / Last-In Wins)
     else:
         logger.info(f"Reconciliation: Duplicate tab detected for {user_id}. Invoking Last-In Wins.")
-        # Notify the remote peer their partner switched contexts
-        emit('call:failed', {
-            'call_id': active_call_id,
-            'reason': 'session_replaced'
-        }, room=room, include_self=False)
-        
-        # Force the new tab to reset to IDLE immediately
-        emit('call:failed', {
-            'call_id': active_call_id,
-            'reason': 'session_replaced'
-        }, to=socket_sid)
-        
+        emit('call:failed', {'call_id': active_call_id, 'reason': 'session_replaced'}, room=room, include_self=False)
+        emit('call:failed', {'call_id': active_call_id, 'reason': 'session_replaced'}, to=socket_sid)
         registry.remove_call(room)
-
-# ==========================================
-# LIFECYCLE HANDLERS
-# ==========================================
 
 @socketio.on("call:start")
 def handle_call_start(payload):
@@ -192,6 +143,7 @@ def handle_call_start(payload):
     print("CALL START RECEIVED")
     print(payload)
     logger.info(f"[CALL START] Caller {session.get('user_id')} triggered start on Worker PID: {os.getpid()}")
+    
     if not validate_base_payload(payload):
         logger.warning("[CALL] Invalid call:start payload")
         return
@@ -203,48 +155,19 @@ def handle_call_start(payload):
     call_id = payload["call_id"]
     session_id = payload.get("session_id")
     callee_id = payload.get("callee_id")
+    call_type = payload.get("call_type", "video") # Ensure we extract call type
 
     if not room or not sender_id:
         logger.warning("[CALL] Missing room or sender_id")
         return
 
-    logger.info(
-        f"""
-================ CALL START ================
-Caller        : {sender_id}
-Callee        : {callee_id}
-Call ID       : {call_id}
-Session ID    : {session_id}
-Socket SID    : {socket_sid}
-Room          : {room}
-Payload       : {payload}
-============================================
-"""
-    )
+    logger.info(f"=== CALL START ===\nCaller: {sender_id}\nCallee: {callee_id}\nType: {call_type}\nCall ID: {call_id}\n==================")
 
     existing = registry.get_call(room)
 
     if existing:
-        logger.warning(
-            f"""
-[CALL] Room already busy
-
-Existing Call : {existing.call_id}
-State         : {existing.state.value}
-Participants  : {list(existing.participants.keys())}
-"""
-        )
-        logger.info(f"Relay payload = {relay_payload}")
-        logger.info(f"Current SID = {request.sid}")
-        logger.info(f"Current room = {room}")
-        emit(
-            "call:busy",
-            {
-                "call_id": call_id,
-                "reason": "already_active"
-            },
-            to=socket_sid
-        )
+        logger.warning(f"[CALL] Room busy. Existing: {existing.call_id}")
+        emit("call:busy", {"call_id": call_id, "reason": "already_active"}, to=socket_sid)
         return
 
     call = registry.create_call(
@@ -253,25 +176,14 @@ Participants  : {list(existing.participants.keys())}
         room_name=room,
         caller_session_id=session_id,
         caller_sid=socket_sid,
+        # NOTE: If your registry supports storing the type, pass `call_type=call_type` here.
     )
 
     if not call:
         logger.error("[CALL] create_call() returned None unexpectedly")
-
-        emit(
-            "call:busy",
-            {
-                "call_id": call_id,
-                "reason": "already_active"
-            },
-            to=socket_sid
-        )
+        emit("call:busy", {"call_id": call_id, "reason": "already_active"}, to=socket_sid)
         return
 
-    #
-    # PHASE 3
-    # Pre-register the callee so reconciliation works.
-    #
     if callee_id:
         registry.update_participant(
             room_name=room,
@@ -282,25 +194,7 @@ Participants  : {list(existing.participants.keys())}
             state=ParticipantState.JOINING,
         )
 
-    #
-    # Ensure caller is inside the signaling room.
-    #
     socketio.server.enter_room(socket_sid, room)
-
-    manager = socketio.server.manager
-
-    room_members = manager.rooms.get("/", {}).get(room, set())
-
-    logger.info(
-        f"""
-========== ROOM STATE ==========
-Room          : {room}
-Members       : {room_members}
-Participants  : {list(call.participants.keys())}
-================================
-"""
-    )
-
     caller_name, caller_avatar = get_caller_display_info(sender_id)
 
     relay_payload = {
@@ -310,32 +204,12 @@ Participants  : {list(call.participants.keys())}
         "caller_name": caller_name,
         "caller_avatar": caller_avatar,
         "caller_status": "online",
+        "call_type": call_type # Relayed straight to recipient!
     }
 
-    log_call(
-        "start",
-        call.call_id,
-        sender_id,
-        room,
-        call.state.value,
-    )
+    log_call("start", call.call_id, sender_id, room, call.state.value)
 
-    emit(
-        "call:start",
-        relay_payload,
-        room=room,
-        include_self=False,
-    )
-
-    logger.info(
-        f"""
-========== BROADCAST ==========
-Event : call:start
-Room  : {room}
-Done
-===============================
-"""
-    )
+    emit("call:start", relay_payload, room=room, include_self=False)
 
 @socketio.on('call:ringing')
 def handle_call_ringing(payload):
@@ -365,10 +239,6 @@ def handle_call_end(payload):
 def handle_call_failed(payload):
     relay_call_event('call:failed', payload, validate_base_payload, new_state=CallState.FAILED, terminate_call=True)
 
-# ==========================================
-# WEBRTC NEGOTIATION
-# ==========================================
-
 @socketio.on('call:offer')
 def handle_call_offer(payload):
     relay_call_event('call:offer', payload, validator_func=validate_sdp)
@@ -381,28 +251,17 @@ def handle_call_answer(payload):
 def handle_call_ice_candidate(payload):
     relay_call_event('call:ice-candidate', payload, validator_func=validate_ice)
 
-# ==========================================
-# DEGRADED DISCONNECT FALLBACK
-# ==========================================
-
 def _handle_disconnect_timeout(room, call_id, user_id, disconnected_sid):
     socketio.sleep(DISCONNECT_GRACE_SECONDS)
     
     call = registry.get_call(room)
-    if not call or call.call_id != call_id:
-        return # Call naturally ended or was explicitly reconciled by a new tab
+    if not call or call.call_id != call_id: return 
         
     participant = registry.get_participant(room, user_id)
-    if not participant:
-        return
+    if not participant: return
         
-    # PHASE 3 GUARD: If the participant successfully re-established a routing ID 
-    # via the `call:reconcile` handshake during the grace period, their socket_sid 
-    # will have shifted. We do NOT terminate the call.
-    if participant.socket_sid != disconnected_sid:
-        return 
+    if participant.socket_sid != disconnected_sid: return 
 
-    # User failed to reconnect in time. FSM cleanup.
     updated_call = registry.update_state(room, CallState.FAILED)
     if not updated_call: return
     
@@ -423,7 +282,6 @@ def handle_call_disconnect():
 
     call = registry.get_call(room)
     if call:
-        # Decoupled from chat presence. Relies strictly on the routing socket mapping.
         socketio.start_background_task(
             _handle_disconnect_timeout, 
             room, 

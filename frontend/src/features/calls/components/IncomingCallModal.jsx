@@ -3,11 +3,8 @@ import { useCall } from '../contexts/CallContext';
 import { CallState } from '../utils/fsm';
 import './IncomingCallModal.css';
 
-// Exit animation duration must match the CSS transition timing (see .modal-overlay.is-exiting)
 const EXIT_ANIMATION_MS = 220;
-
-const FOCUSABLE_SELECTOR =
-    'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])';
+const FOCUSABLE_SELECTOR = 'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
 function getInitials(name) {
     if (!name) return '?';
@@ -15,23 +12,11 @@ function getInitials(name) {
     return parts.map((p) => p[0]?.toUpperCase() ?? '').join('') || '?';
 }
 
-/**
- * IncomingCallModal
- * Presentation-only component. Handles incoming call display,
- * accessible focus management/trapping, action locking, avatar
- * fallback, and enter/exit animation lifecycle.
- */
 export const IncomingCallModal = memo(() => {
-    const {
-        callState,
-        partnerProfile,
-        acceptCall,
-        rejectCall
-    } = useCall();
-
+    const { callState, partnerProfile, acceptCall, rejectCall, callType } = useCall();
     const isIncoming = callState === CallState.INCOMING;
+    const isVoice = callType === 'voice';
 
-    // --- Animation lifecycle -------------------------------------------------
     const [renderState, setRenderState] = useState(isIncoming ? 'visible' : 'hidden');
     const exitTimeoutRef = useRef(null);
 
@@ -52,6 +37,7 @@ export const IncomingCallModal = memo(() => {
         });
         exitTimeoutRef.current = setTimeout(() => {
             setRenderState('hidden');
+            setCachedProfile(null);
         }, EXIT_ANIMATION_MS);
 
         return () => {
@@ -59,7 +45,14 @@ export const IncomingCallModal = memo(() => {
         };
     }, [isIncoming]);
 
-    // --- Action locking --------------------------------------------------------
+    const [cachedProfile, setCachedProfile] = useState(partnerProfile ?? null);
+
+    useEffect(() => {
+        if (isIncoming) {
+            setCachedProfile(partnerProfile ?? null);
+        }
+    }, [isIncoming, partnerProfile]);
+
     const [isProcessing, setIsProcessing] = useState(false);
     const [pendingAction, setPendingAction] = useState(null);
 
@@ -84,7 +77,6 @@ export const IncomingCallModal = memo(() => {
         }
     }, [isProcessing]);
 
-    // --- Focus management + focus trap -----------------------------------------
     const modalRef = useRef(null);
     const acceptButtonRef = useRef(null);
     const previousFocusRef = useRef(null);
@@ -121,15 +113,14 @@ export const IncomingCallModal = memo(() => {
         }
     }, []);
 
-    // --- Avatar fallback --------------------------------------------------------
     const [avatarErrored, setAvatarErrored] = useState(false);
-    const displayName = partnerProfile?.displayName || 'Unknown Caller';
+    const displayName = cachedProfile?.displayName || 'Unknown Caller';
     const initials = useMemo(() => getInitials(displayName), [displayName]);
-    const hasAvatarUrl = Boolean(partnerProfile?.avatarUrl) && !avatarErrored;
+    const hasAvatarUrl = Boolean(cachedProfile?.avatarUrl) && !avatarErrored;
 
     useEffect(() => {
         setAvatarErrored(false);
-    }, [partnerProfile?.avatarUrl]);
+    }, [cachedProfile?.avatarUrl]);
 
     if (renderState === 'hidden') return null;
 
@@ -150,22 +141,26 @@ export const IncomingCallModal = memo(() => {
             onKeyDown={handleKeyDown}
         >
             <div className="modal-content">
-
-                {/* Structural Addition for Presentation Only */}
                 <div className="title-group">
                     <h2 id="incoming-call-title">Incoming Call</h2>
                     <div className="call-type-indicator" aria-hidden="true" style={{ pointerEvents: 'none' }}>
-                        <svg className="camera-icon" viewBox="0 0 24 24" fill="currentColor">
-                            <path d="M17 10.5V7c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1v10c0 .55.45 1 1 1h12c.55 0 1-.45 1-1v-3.5l4 4v-11l-4 4z" />
-                        </svg>
-                        <span>Video Call</span>
+                        {isVoice ? (
+                            <svg className="camera-icon" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M20.01 15.38c-1.23 0-2.42-.2-3.53-.56a.977.977 0 00-1.01.24l-1.57 1.97c-2.83-1.35-5.48-3.9-6.89-6.83l1.95-1.66c.27-.28.35-.67.24-1.02-.37-1.11-.56-2.3-.56-3.53 0-.54-.45-.99-.99-.99H4.19C3.65 3 3 3.24 3 3.99 3 13.28 10.73 21 20.03 21c.71 0 .99-.63.99-1.18v-3.45c0-.54-.45-.99-.99-.99z" />
+                            </svg>
+                        ) : (
+                            <svg className="camera-icon" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M17 10.5V7c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1v10c0 .55.45 1 1 1h12c.55 0 1-.45 1-1v-3.5l4 4v-11l-4 4z" />
+                            </svg>
+                        )}
+                        <span>{isVoice ? 'Voice Call' : 'Video Call'}</span>
                     </div>
                 </div>
 
                 <div className="caller-info">
                     {hasAvatarUrl ? (
                         <img
-                            src={partnerProfile.avatarUrl}
+                            src={cachedProfile.avatarUrl}
                             alt=""
                             className="avatar"
                             onError={() => setAvatarErrored(true)}
