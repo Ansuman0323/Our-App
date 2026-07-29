@@ -41,13 +41,16 @@ Our-App
 │   │   │   │   ├── routes.py
 │   │   │   │   ├── schema.py
 │   │   │   │   └── service.py
-│   │   │   └── pairing
+│   │   │   ├── pairing
+│   │   │   │   ├── __init__.py
+│   │   │   │   ├── constants.py
+│   │   │   │   ├── exceptions.py
+│   │   │   │   ├── repository.py
+│   │   │   │   ├── routes.py
+│   │   │   │   └── service.py
+│   │   │   └── system
 │   │   │       ├── __init__.py
-│   │   │       ├── constants.py
-│   │   │       ├── exceptions.py
-│   │   │       ├── repository.py
-│   │   │       ├── routes.py
-│   │   │       └── service.py
+│   │   │       └── routes.py
 │   │   ├── middleware
 │   │   │   └── auth.py
 │   │   ├── models
@@ -114,9 +117,15 @@ Our-App
 │   │   │   │   ├── AppLayout.jsx
 │   │   │   │   ├── AuthLayout.jsx
 │   │   │   │   └── BottomNav.jsx
-│   │   │   └── routes
-│   │   │       ├── index.jsx
-│   │   │       └── ProtectedRoute.jsx
+│   │   │   ├── routes
+│   │   │   │   ├── index.jsx
+│   │   │   │   └── ProtectedRoute.jsx
+│   │   │   └── splash
+│   │   │       ├── SplashHeart.jsx
+│   │   │       ├── SplashParticles.jsx
+│   │   │       ├── SplashScreen.css
+│   │   │       ├── SplashScreen.jsx
+│   │   │       └── useBackendHealth.js
 │   │   ├── contexts
 │   │   │   └── AuthContext.jsx
 │   │   ├── features
@@ -149,6 +158,9 @@ Our-App
 │   │   │   │   │   ├── LocalVideo
 │   │   │   │   │   │   ├── LocalVideo.css
 │   │   │   │   │   │   └── LocalVideo.jsx
+│   │   │   │   │   ├── RemoteAudio
+│   │   │   │   │   │   ├── RemoteAudio.css
+│   │   │   │   │   │   └── RemoteAudio.jsx
 │   │   │   │   │   └── RemoteVideo
 │   │   │   │   │       ├── RemoteVideo.css
 │   │   │   │   │       └── RemoteVideo.jsx

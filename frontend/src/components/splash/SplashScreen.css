@@ -1,0 +1,144 @@
+.splash {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  background: radial-gradient(
+      120% 120% at 50% 20%,
+      #14141c 0%,
+      #0a0a0f 55%,
+      #000000 100%
+    );
+
+  --splash-heart-from: #ff8fa3;
+  --splash-heart-to: #a78bfa;
+  --splash-title-from: #ffffff;
+  --splash-title-to: #c9c9e8;
+}
+
+/* Phase 3: glass / blur layer sitting above the particles */
+.splash__glass {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  backdrop-filter: blur(60px) saturate(120%);
+  -webkit-backdrop-filter: blur(60px) saturate(120%);
+  background: radial-gradient(
+    60% 40% at 50% 30%,
+    rgba(167, 139, 250, 0.08),
+    transparent 70%
+  );
+}
+
+.splash__content {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 22px;
+  padding: 24px;
+  text-align: center;
+}
+
+/* --- Heart (Phase 1) --- */
+
+.splash-heart {
+  position: relative;
+  width: 84px;
+  height: 84px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.splash-heart__bloom {
+  position: absolute;
+  inset: -20px;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle,
+    rgba(255, 143, 163, 0.35) 0%,
+    rgba(167, 139, 250, 0.18) 45%,
+    transparent 75%
+  );
+  filter: blur(6px);
+}
+
+.splash-heart__icon {
+  position: relative;
+  width: 40px;
+  height: 36px;
+  filter: drop-shadow(0 0 14px rgba(255, 143, 163, 0.45));
+}
+
+/* --- Title (Phase 2) --- */
+
+.splash__title {
+  display: flex;
+  font-family: -apple-system, BlinkMacSystemFont, 'Inter', system-ui, sans-serif;
+  font-size: 32px;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  background: linear-gradient(135deg, var(--splash-title-from), var(--splash-title-to));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.splash__letter {
+  display: inline-block;
+  white-space: pre;
+}
+
+/* --- Status copy (Phase 4) --- */
+
+.splash-loader {
+  min-height: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.splash-loader--placeholder {
+  min-height: 20px;
+}
+
+.splash-loader__line {
+  font-size: 13px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.65);
+  letter-spacing: 0.01em;
+}
+
+.splash-loader__line--muted {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.4);
+  max-width: 260px;
+}
+
+/* --- Particles (Phase 3) --- */
+
+.splash-particles {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.splash-particles__dot {
+  position: absolute;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.7);
+  box-shadow: 0 0 6px rgba(167, 139, 250, 0.5);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .splash-heart__bloom,
+  .splash-heart__icon,
+  .splash-particles__dot {
+    animation: none !important;
+  }
+}

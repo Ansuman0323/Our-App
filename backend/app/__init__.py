@@ -76,6 +76,9 @@ def initialize_extensions(flask_app):
 
 
 def register_blueprints(flask_app):
+    from app.features.system.routes import system_bp
+    flask_app.register_blueprint(system_bp)  # no prefix -> GET /health
+
     from app.features.auth.routes import auth_bp
     flask_app.register_blueprint(auth_bp, url_prefix="/api/v1/auth")
 
