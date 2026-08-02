@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { pairingApi } from '../../pairing/api';
+import { GlassCard, EmptyState } from '../../../components/ui';
 
 export const WaitingState = () => {
     const [inviteData, setInviteData] = useState(null);
@@ -58,19 +59,22 @@ export const WaitingState = () => {
     };
 
     if (loading) {
-        return <div className="waiting-state__status">Preparing your shared world...</div>;
+        return (
+            <GlassCard className="waiting-state">
+                <EmptyState icon="🌌" title="Preparing your shared world" subtitle="This will only take a second." />
+            </GlassCard>
+        );
     }
     if (error) {
-        return <div className="waiting-state__status waiting-state__status--error">{error}</div>;
+        return (
+            <GlassCard className="waiting-state">
+                <div className="waiting-state__status waiting-state__status--error">{error}</div>
+            </GlassCard>
+        );
     }
 
     return (
-        <motion.div
-            className="waiting-state"
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.2, ease: [0.4, 0, 0.2, 1] }}
-        >
+        <GlassCard as="div" className="waiting-state">
             <div className="waiting-state__hero" aria-hidden="true">
                 <span className="waiting-state__ring waiting-state__ring--outer" />
                 <span className="waiting-state__ring waiting-state__ring--inner" />
@@ -149,6 +153,6 @@ export const WaitingState = () => {
                     Regenerate
                 </motion.button>
             </div>
-        </motion.div>
+        </GlassCard>
     );
 };

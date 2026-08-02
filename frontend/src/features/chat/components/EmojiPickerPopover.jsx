@@ -1,35 +1,24 @@
 import React from 'react';
 import EmojiPicker, { Theme, EmojiStyle } from 'emoji-picker-react';
 
-export const EmojiPickerPopover = ({
-    onSelect,
-    isMobile = false,
-    className = ""
-}) => {
-
-    // If no custom className is supplied (used by reactions),
-    // fall back to the old floating positioning.
+export const EmojiPickerPopover = ({ onSelect, isMobile = false, className = "" }) => {
     const wrapperClass =
         className ||
-        (isMobile
-            ? 'w-full flex justify-center'
-            : 'absolute top-14 left-0 z-[60]');
+        (isMobile ? 'w-full flex justify-center' : 'absolute top-14 left-0 z-[10020]');
 
     return (
         <div
-            className={`${wrapperClass} animate-in fade-in zoom-in-95 duration-200 overflow-hidden`}
+            className={`${wrapperClass} flex flex-col flex-1 min-h-0 animate-in fade-in zoom-in-95 duration-200 overflow-hidden rounded-2xl`}
+            style={{ boxShadow: className ? undefined : 'var(--shadow-floating)' }}
             onClick={(e) => e.stopPropagation()}
         >
             <EmojiPicker
                 onEmojiClick={(emojiData) => onSelect(emojiData.emoji)}
                 autoFocusSearch={!isMobile}
-                theme={Theme.LIGHT}
+                theme={Theme.DARK}
                 emojiStyle={EmojiStyle.NATIVE}
-
-                // Fill the parent container
                 width="100%"
-                height={300}
-
+                height="100%"
                 searchDisabled={false}
                 skinTonesDisabled={false}
                 lazyLoadEmojis={true}

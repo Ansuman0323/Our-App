@@ -5,6 +5,8 @@ import { MessageList } from '../components/MessageList';
 import { MessageInput } from '../components/MessageInput';
 import { ChatHeader } from '../components/ChatHeader';
 import { useCall } from '../../calls/contexts/CallContext';
+import { ChatOverlayProvider } from '../contexts/ChatOverlayContext';
+import { ChatOverlayBackdrop } from '../components/ChatOverlayBackdrop';
 
 export const ChatPage = () => {
     const { dbUser } = useAuth();
@@ -13,7 +15,7 @@ export const ChatPage = () => {
     const {
         messages, partner, isLoading, loadInitialMessages, loadMoreMessages, hasMore, isFetchingTop,
         sendMessage, editMessage, deleteMessage, deleteMessageForMe, toggleReaction,
-        partnerStatus, isPartnerTyping, emitTypingStart, emitTypingStop, emitMarkRead, partnerReceipt
+        partnerStatus, partnerLastSeen, isPartnerTyping, emitTypingStart, emitTypingStop, emitMarkRead, partnerReceipt
     } = useChat(dbUser);
 
     const [editingMessage, setEditingMessage] = useState(null);
@@ -42,52 +44,65 @@ export const ChatPage = () => {
     if (isLoading) {
         return (
             <div className="chat-page-root items-center justify-center">
-                <div className="animate-pulse flex flex-col items-center">
-                    <div className="w-10 h-10 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin mb-4"></div>
-                    <p className="text-sm font-medium text-slate-500">Connecting securely...</p>
+                <div className="flex flex-col items-center">
+                    <div
+                        className="w-10 h-10 rounded-full animate-spin mb-4"
+                        style={{ border: '3px solid var(--surface-border)', borderTopColor: 'var(--dream-pink)' }}
+                    />
+                    <p className="text-sm font-medium" style={{ color: 'var(--text-secondary)' }}>
+                        Opening your private world…
+                    </p>
                 </div>
             </div>
         );
     }
 
     return (
-        <div className="chat-page-root relative select-none">
-            <ChatHeader
-                partnerName={partnerName}
-                status={partnerStatus}
-                isTyping={isPartnerTyping}
-                onStartCall={(type) => {
-                    if (partnerId) startCall(partnerId, type);
-                }}
-                canStartCall={!!partnerId}
-            />
+        <ChatOverlayProvider>
+            <div className="chat-page-root relative select-none">
+                <ChatHeader
+                    partnerName={partnerName}
+                    status={partnerStatus}
+                    partnerLastSeen={partnerLastSeen}
+                    isTyping={isPartnerTyping}
+                    onStartCall={(type) => {
+                        if (partnerId) startCall(partnerId, type);
+                    }}
+                    canStartCall={!!partnerId}
+                    togetherSince={partner?.together_since ?? partner?.paired_at ?? partner?.space_created_at}
+                />
 
-            <MessageList
-                messages={messages}
-                user={dbUser}
-                hasMore={hasMore}
-                isFetchingTop={isFetchingTop}
-                onLoadMore={loadMoreMessages}
-                onRetryMessage={sendMessage}
-                onEditMessage={setEditingMessage}
-                onReplyMessage={setReplyingToMessage}
-                onDeleteMessage={deleteMessage}
-                onToggleReaction={toggleReaction}
-                onDeleteMessageForMe={deleteMessageForMe}
-                partnerReceipt={partnerReceipt}
-                onMarkRead={emitMarkRead}
-            />
+                <MessageList
+                    messages={messages}
+                    user={dbUser}
+                    hasMore={hasMore}
+                    isFetchingTop={isFetchingTop}
+                    onLoadMore={loadMoreMessages}
+                    onRetryMessage={sendMessage}
+                    onEditMessage={setEditingMessage}
+                    onReplyMessage={setReplyingToMessage}
+                    onDeleteMessage={deleteMessage}
+                    onToggleReaction={toggleReaction}
+                    onDeleteMessageForMe={deleteMessageForMe}
+                    partnerReceipt={partnerReceipt}
+                    onMarkRead={emitMarkRead}
+                    isPartnerTyping={isPartnerTyping}
+                    partnerName={partnerName}
+                />
 
-            <MessageInput
-                onSend={handleSendMessage}
-                emitTypingStart={emitTypingStart}
-                emitTypingStop={emitTypingStop}
-                editingMessage={editingMessage}
-                onSaveEdit={handleSaveEdit}
-                onCancelEdit={() => setEditingMessage(null)}
-                replyingToMessage={replyingToMessage}
-                onCancelReply={() => setReplyingToMessage(null)}
-            />
-        </div>
+                <MessageInput
+                    onSend={handleSendMessage}
+                    emitTypingStart={emitTypingStart}
+                    emitTypingStop={emitTypingStop}
+                    editingMessage={editingMessage}
+                    onSaveEdit={handleSaveEdit}
+                    onCancelEdit={() => setEditingMessage(null)}
+                    replyingToMessage={replyingToMessage}
+                    onCancelReply={() => setReplyingToMessage(null)}
+                />
+
+                <ChatOverlayBackdrop />
+            </div>
+        </ChatOverlayProvider>
     );
 };

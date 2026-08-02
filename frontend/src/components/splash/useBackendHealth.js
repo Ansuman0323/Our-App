@@ -1,8 +1,7 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 
 const RAW_API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api/v1';
-// Derive the bare backend origin from VITE_API_URL so we don't need
-// a second env var: http://host:5000/api/v1 -> http://host:5000
+// Derive the bare backend origin from VITE_API_URL: http://host:5000/api/v1 -> http://host:5000
 const API_ORIGIN = RAW_API_URL.replace(/\/api\/v1\/?$/, '');
 const HEALTH_ENDPOINT = `${API_ORIGIN}/health`;
 
@@ -13,25 +12,30 @@ const COLD_START_THRESHOLD_MS = 15000;
 
 /**
  * Pings GET /health immediately, then retries every 2s until the
- * backend responds. Never gives up (no timeout ceiling) and never
- * overlaps requests. Surfaces a `statusMessage` key so the UI can
- * show progressively more reassuring copy the longer a Render free
- * instance takes to wake up.
+ * backend responds. Stops forever after the first HTTP 200.
+ *
+ * IMPORTANT: all "am I cancelled / is a request in flight" state is
+ * kept as local variables INSIDE the effect body (not refs). Refs
+ * persist across React StrictMode's dev-only double-invoke of
+ * effects (mount -> cleanup -> mount again on the same instance),
+ * which previously left a stale "cancelled" flag stuck true forever
+ * after the first mount, silently preventing any polling from ever
+ * happening on the real mount. Plain `let` locals are fresh on every
+ * effect invocation, so that stale-flag bug can't happen here.
  */
 export function useBackendHealth() {
     const [isReady, setIsReady] = useState(false);
     const [statusMessage, setStatusMessage] = useState(null); // null | 'connecting' | 'cold-start'
 
-    const startedAtRef = useRef(Date.now());
-    const inFlightRef = useRef(false);
-    const cancelledRef = useRef(false);
-
     useEffect(() => {
+        let cancelled = false;
+        let inFlight = false;
         let timeoutId;
+        const startedAt = Date.now();
 
         const tick = async () => {
-            if (cancelledRef.current || inFlightRef.current) return;
-            inFlightRef.current = true;
+            if (cancelled || inFlight) return;
+            inFlight = true;
 
             try {
                 const controller = new AbortController();
@@ -46,19 +50,19 @@ export function useBackendHealth() {
                 clearTimeout(abortTimer);
 
                 if (res.ok) {
-                    if (!cancelledRef.current) setIsReady(true);
-                    return; // stop polling — we're done
+                    if (!cancelled) setIsReady(true);
+                    return; // success — stop polling for good, no further setTimeout
                 }
             } catch {
                 // Network error, timeout, or backend still asleep.
-                // Swallow and keep retrying — this is expected during cold start.
+                // Swallow and keep retrying — expected during cold start.
             } finally {
-                inFlightRef.current = false;
+                inFlight = false;
             }
 
-            if (cancelledRef.current) return;
+            if (cancelled) return;
 
-            const elapsed = Date.now() - startedAtRef.current;
+            const elapsed = Date.now() - startedAt;
             if (elapsed >= COLD_START_THRESHOLD_MS) {
                 setStatusMessage('cold-start');
             } else if (elapsed >= CONNECTING_THRESHOLD_MS) {
@@ -68,13 +72,13 @@ export function useBackendHealth() {
             timeoutId = setTimeout(tick, POLL_INTERVAL_MS);
         };
 
-        tick(); // fire immediately on mount — wake the backend right away
+        tick(); // fire immediately on mount
 
         return () => {
-            cancelledRef.current = true;
+            cancelled = true;
             clearTimeout(timeoutId);
         };
-    }, []);
+    }, []); // empty deps: this effect's own logic never needs to restart
 
     return { isReady, statusMessage };
 }

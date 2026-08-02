@@ -4,9 +4,9 @@ import { giphyService } from '../services/giphyService';
 
 // Reusable Search Input
 const GifSearch = ({ query, setQuery, placeholder }) => (
-    <div className="p-2 border-b border-slate-100 shrink-0 bg-slate-50 rounded-t-2xl">
+    <div className="p-2 shrink-0" style={{ borderBottom: '1px solid var(--surface-border)' }}>
         <div className="relative">
-            <svg className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2" style={{ color: 'var(--text-muted)' }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
             </svg>
             <input
@@ -14,7 +14,11 @@ const GifSearch = ({ query, setQuery, placeholder }) => (
                 placeholder={placeholder}
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                className="w-full bg-slate-200/60 border-none rounded-full py-1.5 pl-9 pr-4 text-sm focus:ring-2 focus:ring-indigo-500/30 outline-none text-slate-700 placeholder:text-slate-500 transition-shadow"
+                className="w-full border-none rounded-full py-1.5 pl-9 pr-4 text-sm outline-none transition-shadow"
+                style={{
+                    background: 'var(--surface-glass)',
+                    color: 'var(--text-primary)',
+                }}
             />
         </div>
     </div>
@@ -45,7 +49,6 @@ const MediaGrid = ({ items, isLoading, onSelect, hasMore, loadMore }) => {
         grid-cols-2
         gap-2
         content-start
-        custom-scrollbar
         min-h-0
     "
         >
@@ -56,7 +59,8 @@ const MediaGrid = ({ items, isLoading, onSelect, hasMore, loadMore }) => {
                         key={item.id}
                         ref={isLast ? lastElementRef : null}
                         onClick={() => onSelect(item)}
-                        className="relative bg-slate-100 rounded-lg overflow-hidden cursor-pointer group pb-[100%] shadow-sm hover:shadow transition-shadow"
+                        className="relative rounded-lg overflow-hidden cursor-pointer group pb-[100%] transition-shadow"
+                        style={{ background: 'var(--surface-glass)' }}
                     >
                         <img
                             src={item.previewUrl}
@@ -70,11 +74,11 @@ const MediaGrid = ({ items, isLoading, onSelect, hasMore, loadMore }) => {
 
             {/* Loading Skeletons */}
             {isLoading && Array.from({ length: 4 }).map((_, i) => (
-                <div key={`skel-${i}`} className="bg-slate-200 rounded-lg pb-[100%] animate-pulse border border-slate-300/50"></div>
+                <div key={`skel-${i}`} className="rounded-lg pb-[100%] animate-pulse" style={{ background: 'var(--surface-card)', border: '1px solid var(--surface-border)' }}></div>
             ))}
 
             {!isLoading && items.length === 0 && (
-                <div className="col-span-2 py-8 text-center text-slate-400 text-sm">
+                <div className="col-span-2 py-8 text-center text-sm" style={{ color: 'var(--text-muted)' }}>
                     No results found
                 </div>
             )}
@@ -152,11 +156,19 @@ export const EmojiGifPicker = ({
 
     return (
         <div
-            className={`flex flex-col bg-white shadow-xl border border-slate-200 rounded-2xl overflow-hidden w-[320px] md:w-[350px] h-[420px] z-[60] ${className}`}
+            className={`flex flex-col overflow-hidden w-[320px] md:w-[350px] max-w-[calc(100vw-24px)] h-[420px] rounded-2xl ${className}`}
+            style={{
+                background: 'var(--surface-glass-strong)',
+                backdropFilter: 'blur(var(--blur-lg)) saturate(160%)',
+                WebkitBackdropFilter: 'blur(var(--blur-lg)) saturate(160%)',
+                border: '1px solid var(--surface-border)',
+                boxShadow: 'var(--shadow-floating)',
+                paddingBottom: 'env(safe-area-inset-bottom)',
+            }}
         >
 
             {/* TABS HEADER */}
-            <div className="flex items-center justify-around bg-slate-50 border-b border-slate-200 shrink-0">
+            <div className="flex items-center justify-around shrink-0" style={{ borderBottom: '1px solid var(--surface-border)' }}>
                 {[
                     { id: 'emoji', label: '😀 Emoji' },
                     { id: 'gif', label: '🎞 GIF' },
@@ -169,10 +181,12 @@ export const EmojiGifPicker = ({
                             setActiveTab(tab.id);
                             if (tab.id !== activeTab) setQuery('');
                         }}
-                        className={`flex-1 py-2.5 text-xs font-bold transition-colors ${activeTab === tab.id
-                            ? 'text-indigo-600 border-b-2 border-indigo-600 bg-white'
-                            : 'text-slate-500 hover:text-slate-700 hover:bg-slate-100'
-                            }`}
+                        className="flex-1 py-2.5 text-xs font-bold transition-colors"
+                        style={
+                            activeTab === tab.id
+                                ? { color: 'var(--dream-pink)', borderBottom: '2px solid var(--dream-pink)', background: 'var(--surface-glass)' }
+                                : { color: 'var(--text-muted)' }
+                        }
                     >
                         {tab.label}
                     </button>
@@ -180,7 +194,7 @@ export const EmojiGifPicker = ({
             </div>
 
             {/* TAB CONTENT */}
-            <div className="flex flex-col flex-1 bg-white relative overflow-hidden">
+            <div className="flex flex-col flex-1 relative overflow-hidden min-h-0">
                 {activeTab === 'emoji' ? (
                     // We render your original picker seamlessly
                     <EmojiPickerPopover
@@ -199,8 +213,6 @@ export const EmojiGifPicker = ({
                             items={items}
                             isLoading={isLoading}
                             onSelect={(item) => {
-                                console.log(item);
-
                                 if (activeTab === "gif") {
                                     onGifSelect(item);
                                 } else {

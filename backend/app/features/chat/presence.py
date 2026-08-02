@@ -11,6 +11,7 @@ class PresenceManager:
     def __init__(self):
         self._users = {}  # Format: user_id -> set(socket_ids)
         self._typing_timestamps = {}  # Format: socket_id -> float (timestamp)
+        self._last_seen = {}  # Format: user_id -> float (epoch timestamp of last disconnect)
         self._lock = threading.Lock()
 
     def add_connection(self, user_id: str, socket_id: str) -> bool:
@@ -20,6 +21,9 @@ class PresenceManager:
                 self._users[user_id] = set()
             is_newly_online = len(self._users[user_id]) == 0
             self._users[user_id].add(socket_id)
+            if is_newly_online:
+                # They're online now, so any stale last-seen no longer applies
+                self._last_seen.pop(user_id, None)
             return is_newly_online
 
     def remove_connection(self, user_id: str, socket_id: str) -> bool:
@@ -30,12 +34,19 @@ class PresenceManager:
                 self._users[user_id].discard(socket_id)
                 if len(self._users[user_id]) == 0:
                     del self._users[user_id]
+                    self._last_seen[user_id] = time.time()
                     return True
         return False
 
     def is_online(self, user_id: str) -> bool:
         with self._lock:
             return str(user_id) in self._users
+
+    def get_last_seen(self, user_id: str):
+        """Returns the epoch timestamp of the user's last full disconnect,
+        or None if they're currently online / have no recorded history."""
+        with self._lock:
+            return self._last_seen.get(str(user_id))
 
     def can_emit_typing(self, socket_id: str, throttle_seconds: float = 2.0) -> bool:
         with self._lock:

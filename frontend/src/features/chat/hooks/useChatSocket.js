@@ -10,6 +10,7 @@ export const useChatSocket = (
     const hasConnectedOnce = useRef(false);
 
     const [partnerStatus, setPartnerStatus] = useState('offline');
+    const [partnerLastSeen, setPartnerLastSeen] = useState(null);
     const [isPartnerTyping, setIsPartnerTyping] = useState(false);
 
     const onReceiveRef = useRef(onReceiveMessage);
@@ -47,7 +48,25 @@ export const useChatSocket = (
                 onReceiveRef.current?.(dto);
             };
             const handleReceipt = (dto) => onReceiptRef.current?.(dto);
-            const handlePresence = (data) => setPartnerStatus(data.status);
+
+            // Only an explicit 'online' counts as online — anything else
+            // (including unknown/missing status) defaults to offline.
+            const handlePresence = (data) => {
+                setPartnerStatus(data?.status === 'online' ? 'online' : 'offline');
+                if (data && 'last_seen' in data) {
+                    setPartnerLastSeen(data.last_seen ?? null);
+                }
+            };
+
+            // We lost our own connection — we can no longer vouch for the
+            // partner's presence, so fall back to offline until the server
+            // resyncs us on reconnect (see handleConnect -> onReconnectSync,
+            // and the backend's connect handler which always re-emits the
+            // partner's true status).
+            const handleDisconnect = () => {
+                setPartnerStatus('offline');
+            };
+
             const handleTypingStart = () => setIsPartnerTyping(true);
             const handleTypingStop = () => setIsPartnerTyping(false);
             const handleUpdate = (dto) => onUpdateRef.current?.(dto.id, dto);
@@ -60,6 +79,7 @@ export const useChatSocket = (
 
             // Bind listeners
             socket.on('connect', handleConnect);
+            socket.on('disconnect', handleDisconnect);
             socket.on('receive_message', handleReceive);
             socket.on('receipt_updated', handleReceipt);
             socket.on('presence_changed', handlePresence);
@@ -71,6 +91,7 @@ export const useChatSocket = (
             // Prepare teardown function
             cleanupListeners = () => {
                 socket.off('connect', handleConnect);
+                socket.off('disconnect', handleDisconnect);
                 socket.off('receive_message', handleReceive);
                 socket.off('receipt_updated', handleReceipt);
                 socket.off('presence_changed', handlePresence);
@@ -95,5 +116,12 @@ export const useChatSocket = (
     const emitTypingStop = useCallback(() => socketService.getSocket()?.emit('typing_stop'), []);
     const emitMarkRead = useCallback((messageId) => socketService.getSocket()?.emit('mark_read', { message_id: messageId }), []);
 
-    return { partnerStatus, isPartnerTyping, emitTypingStart, emitTypingStop, emitMarkRead };
+    return {
+        partnerStatus,
+        partnerLastSeen,
+        isPartnerTyping,
+        emitTypingStart,
+        emitTypingStop,
+        emitMarkRead,
+    };
 };

@@ -1,0 +1,381 @@
+/*
+  Planner — "Plan Something Beautiful"
+  =====================================
+  Additive only. Reuses .glass-surface / .glass-card / .section-header
+  primitives already defined in design-system.css.
+*/
+
+.planner-page {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-7, 32px);
+}
+
+.planner-page__intro { text-align: center; padding: 4px 8px 0; }
+
+.planner-page__eyebrow {
+    display: block;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--dream-rosegold);
+    margin-bottom: 6px;
+}
+
+.planner-page__title {
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: 32px;
+    color: var(--dream-moonlight);
+}
+
+/* ---- Anniversary countdown hero ---- */
+
+.anniversary-countdown {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    padding: 26px 22px;
+    border-radius: var(--radius-xl);
+    background: var(--gradient-header-wash), var(--surface-card);
+    border: 1px solid var(--surface-border);
+    box-shadow: var(--shadow-floating), var(--shadow-glass-inset);
+}
+
+.anniversary-countdown__ring-wrap {
+    position: relative;
+    flex-shrink: 0;
+    width: 96px;
+    height: 96px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.anniversary-countdown__ring {
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    border: 1.5px solid var(--dream-lavender);
+    opacity: 0.5;
+}
+
+.anniversary-countdown__ring--outer {
+    animation: countdown-pulse 3.2s ease-out infinite;
+}
+
+.anniversary-countdown__ring--inner {
+    inset: 10px;
+    border-color: var(--dream-pink);
+    opacity: 0.7;
+}
+
+@keyframes countdown-pulse {
+    0% { transform: scale(0.92); opacity: 0.55; }
+    70% { transform: scale(1.06); opacity: 0.15; }
+    100% { transform: scale(0.92); opacity: 0.55; }
+}
+
+.anniversary-countdown__center {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    width: 72px;
+    height: 72px;
+    border-radius: 50%;
+    background: var(--gradient-indigo-lavender);
+    color: var(--dream-bg-1);
+    box-shadow: var(--shadow-glow-primary);
+}
+
+.anniversary-countdown__days {
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: 24px;
+    line-height: 1;
+}
+
+.anniversary-countdown__unit {
+    font-size: 9px;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+}
+
+.anniversary-countdown__body {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.anniversary-countdown__label {
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+}
+
+.anniversary-countdown__date {
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: 19px;
+    color: var(--dream-moonlight);
+}
+
+.anniversary-countdown__note {
+    margin-top: 2px;
+    font-family: var(--font-quote);
+    font-style: italic;
+    font-size: 13.5px;
+    color: var(--text-secondary);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .anniversary-countdown__ring--outer { animation: none; }
+}
+
+/* ---- Today's plans checklist ---- */
+
+.today-checklist__list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+
+.today-checklist__item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 12px;
+    border-radius: var(--radius-md);
+    background: var(--surface-glass);
+    border: 1px solid var(--surface-border);
+    transition: opacity var(--duration-normal) var(--ease-standard);
+}
+
+.today-checklist__item--done { opacity: 0.55; }
+
+.today-checklist__check {
+    flex-shrink: 0;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    border: 1.5px solid var(--dream-lavender);
+    background: transparent;
+    color: var(--dream-bg-1);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+}
+
+.today-checklist__item--done .today-checklist__check {
+    background: var(--dream-lavender);
+    border-color: var(--dream-lavender);
+}
+
+.today-checklist__check svg { width: 14px; height: 14px; }
+
+.today-checklist__icon { font-size: 18px; flex-shrink: 0; }
+
+.today-checklist__text { display: flex; flex-direction: column; gap: 1px; }
+
+.today-checklist__title {
+    font-size: 14.5px;
+    font-weight: 600;
+    color: var(--dream-moonlight);
+}
+
+.today-checklist__item--done .today-checklist__title { text-decoration: line-through; }
+
+.today-checklist__time { font-size: 12px; color: var(--text-muted); }
+
+/* ---- Upcoming date spotlight ---- */
+
+.upcoming-date__body {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 10px 4px 4px;
+}
+
+.upcoming-date__icon {
+    font-size: 30px;
+    width: 56px;
+    height: 56px;
+    border-radius: var(--radius-lg);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--color-secondary-soft);
+    flex-shrink: 0;
+}
+
+.upcoming-date__info { display: flex; flex-direction: column; gap: 2px; }
+
+.upcoming-date__title {
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: 17px;
+    color: var(--dream-moonlight);
+}
+
+.upcoming-date__meta { font-size: 13px; color: var(--text-secondary); }
+.upcoming-date__meta--muted { color: var(--text-muted); }
+
+/* ---- Sticky note board (Weekend Ideas) ---- */
+
+.sticky-board__grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 14px;
+}
+
+.sticky-note {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 16px 14px;
+    border-radius: 4px;
+    box-shadow: var(--shadow-md);
+    color: var(--dream-bg-1);
+    min-height: 92px;
+}
+
+.sticky-note--peach { background: #ffe4c4; }
+.sticky-note--pink { background: #ffd6e0; }
+.sticky-note--lavender { background: #e3d9ff; }
+.sticky-note--mint { background: #d3f2e6; }
+
+.sticky-note__icon { font-size: 20px; }
+
+.sticky-note__title {
+    font-family: 'Caveat', var(--font-quote);
+    font-size: 18px;
+    font-weight: 600;
+    line-height: 1.2;
+}
+
+/* ---- Destination carousel ---- */
+
+.destination-carousel__track {
+    display: flex;
+    gap: 14px;
+    padding: 4px 4px 10px;
+    margin: 0 -4px;
+    overflow-x: auto;
+    scroll-snap-type: x proximity;
+    scrollbar-width: none;
+}
+
+.destination-carousel__track::-webkit-scrollbar { display: none; }
+
+.destination-card {
+    position: relative;
+    flex: 0 0 auto;
+    width: 200px;
+    height: 140px;
+    margin: 0;
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    scroll-snap-align: start;
+    box-shadow: var(--shadow-md);
+}
+
+.destination-card__photo { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+
+.destination-card__scrim {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(to top, rgba(10, 6, 20, 0.82) 0%, transparent 65%);
+}
+
+.destination-card__caption {
+    position: absolute;
+    left: 0; right: 0; bottom: 0;
+    z-index: 1;
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.destination-card__title {
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: 14.5px;
+    color: var(--dream-moonlight);
+}
+
+.destination-card__subtitle {
+    font-size: 11.5px;
+    color: var(--text-secondary);
+}
+
+/* ---- Bucket list ---- */
+
+.bucket-list__progress-track {
+    height: 6px;
+    border-radius: var(--radius-full);
+    background: var(--surface-glass);
+    overflow: hidden;
+    margin: 4px 0 16px;
+}
+
+.bucket-list__progress-fill {
+    height: 100%;
+    border-radius: var(--radius-full);
+    background: var(--gradient-rose-lavender);
+}
+
+.bucket-list__items { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+
+.bucket-list__item { display: flex; align-items: center; gap: 12px; }
+
+.bucket-list__check {
+    flex-shrink: 0;
+    width: 22px;
+    height: 22px;
+    border-radius: 7px;
+    border: 1.5px solid var(--surface-border);
+    background: var(--surface-glass);
+    color: var(--dream-bg-1);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+}
+
+.bucket-list__check--done { background: var(--dream-pink); border-color: var(--dream-pink); }
+.bucket-list__check svg { width: 13px; height: 13px; }
+
+.bucket-list__label { font-size: 14px; color: var(--text-secondary); }
+.bucket-list__label--done { color: var(--text-muted); text-decoration: line-through; }
+
+/* ---- Special occasions ---- */
+
+.occasion-timeline__list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+
+.occasion-timeline__item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 4px;
+    border-bottom: 1px solid var(--surface-border);
+}
+
+.occasion-timeline__item:last-child { border-bottom: none; }
+
+.occasion-timeline__icon { font-size: 20px; }
+
+.occasion-timeline__title {
+    flex: 1;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--dream-moonlight);
+}
+
+.occasion-timeline__date {
+    font-family: 'Caveat', var(--font-quote);
+    font-size: 16px;
+    color: var(--dream-rosegold);
+}

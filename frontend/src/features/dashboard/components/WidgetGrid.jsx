@@ -1,51 +1,76 @@
 import React from 'react';
 import { WidgetCard } from './WidgetCard';
 
+// Each widget carries its own `layout` now, instead of every card past
+// the first sharing one compact shape — this is what gives the grid
+// rhythm: one hero, one quote-style tile, then a settled run of small,
+// specific, personal widgets rather than generic "feature" tiles.
+// Photo/memory duty now belongs to MemoriesCarousel, so it's no longer
+// duplicated here as a 'wide' card.
 const DEFAULT_WIDGETS = [
     {
         key: 'days_together',
         title: 'Our Journey',
         icon: '❤️',
         variant: 'gradient',
-        value: 'Waiting for your first shared milestone...',
+        layout: 'hero',
+        value: 'The first chapter of your story is about to begin.',
     },
     {
         key: 'latest_message',
-        title: 'Our Last Conversation',
+        title: 'Love Letters',
         icon: '💌',
         variant: 'rose',
-        value: 'Your beautiful conversations will appear here.',
+        layout: 'quote',
+        value: 'Every love story deserves to be written.',
     },
     {
-        key: 'recent_memory',
-        title: 'Our Latest Memory',
-        icon: '📸',
+        key: 'this_day',
+        title: 'This Day Together',
+        icon: '📆',
         variant: 'indigo',
-        value: 'Your first shared memory will live here.',
+        layout: 'default',
+        value: 'Your journey together starts today.',
     },
     {
-        key: 'today_tasks',
-        title: 'Today, Together',
-        icon: '✅',
-        variant: 'emerald',
-        value: "What you plan together will show up here.",
+        key: 'our_song',
+        title: 'Our Song',
+        icon: '🎵',
+        variant: 'lavender',
+        layout: 'default',
+        value: 'Add the song that\u2019s yours.',
     },
     {
-        // Renamed from "Shared Dreams" (plant icon) to match what the
-        // key itself already says — a wishlist, not a dreams board.
-        // See chat notes if the dream/plant framing is preferred instead.
-        key: 'wishlist',
-        title: 'Little Wishes',
-        icon: '🎁',
-        variant: 'peach',
-        value: 'Start planning something together.',
+        key: 'streak',
+        title: 'Relationship Streak',
+        icon: '💖',
+        variant: 'rose',
+        layout: 'default',
+        value: 'Every day you show up counts.',
+    },
+    {
+        key: 'mood',
+        title: 'Tonight Together',
+        icon: '🌙',
+        variant: 'blue',
+        layout: 'default',
+        value: 'How are you both feeling tonight?',
     },
     {
         key: 'upcoming_event',
-        title: 'Our Next Adventure',
+        title: 'Countdown',
         icon: '📅',
-        variant: 'blue',
-        value: 'Your next moment together will appear here.',
+        variant: 'emerald',
+        layout: 'default',
+        value: 'Your next date is waiting.',
+    },
+    {
+        key: 'wishlist',
+        title: 'Dream Gifts',
+        icon: '🎁',
+        variant: 'peach',
+        layout: 'default',
+        value: 'Every dream begins with one little wish.',
     },
 ];
 
@@ -59,13 +84,14 @@ export const WidgetGrid = ({ widgets }) => {
                     key={w.key}
                     title={w.title}
                     icon={w.icon}
+                    image={w.image}
                     variant={w.variant}
                     index={i}
                     footer={w.footer}
-                    // The first widget is rendered as the featured/hero
-                    // tile (full-width, larger) — the rest sit in the
-                    // compact 2-column grid.
-                    layout={i === 0 ? 'hero' : 'default'}
+                    // Falls back to the old hero-first/compact-rest
+                    // behavior if a caller passes widgets with no
+                    // `layout` field of their own.
+                    layout={w.layout ?? (i === 0 ? 'hero' : 'default')}
                 >
                     {w.value ?? 'Our first memory together will bloom here.'}
                 </WidgetCard>

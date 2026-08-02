@@ -1,0 +1,227 @@
+/*
+  Wishlist — "Our Dream Board"
+  =============================
+  Additive only. Follows the same tokens as memories.css / planner.css.
+*/
+
+.wishlist-page {
+    display: flex;
+    flex-direction: column;
+    gap: 22px;
+}
+
+.wishlist-page__intro { text-align: center; padding: 4px 8px 0; }
+
+.wishlist-page__eyebrow {
+    display: block;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--dream-rosegold);
+    margin-bottom: 6px;
+}
+
+.wishlist-page__title {
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: 32px;
+    color: var(--dream-moonlight);
+}
+
+.wishlist-page__subtitle {
+    margin-top: 6px;
+    font-family: var(--font-quote);
+    font-style: italic;
+    font-size: 16px;
+    color: var(--text-secondary);
+}
+
+/* ---- Category filter ---- */
+
+.category-filter {
+    display: flex;
+    gap: 8px;
+    padding: 2px 2px 4px;
+    margin: 0 -2px;
+    overflow-x: auto;
+    scrollbar-width: none;
+}
+
+.category-filter::-webkit-scrollbar { display: none; }
+
+.category-filter__pill {
+    position: relative;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 14px;
+    border-radius: var(--radius-full);
+    border: 1px solid var(--surface-border);
+    background: var(--surface-glass);
+    color: var(--text-secondary);
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: color var(--duration-normal) var(--ease-standard);
+}
+
+.category-filter__pill--active { color: var(--dream-moonlight); }
+
+.category-filter__glow {
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    border-radius: var(--radius-full);
+    background: var(--color-primary-soft);
+    box-shadow: 0 0 0 1px rgba(201, 182, 255, 0.28), var(--shadow-glow-primary);
+}
+
+.category-filter__icon,
+.category-filter__label { position: relative; z-index: 1; }
+
+/* ---- Wish grid ---- */
+
+.wishlist-page__grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 14px;
+}
+
+@media (min-width: 768px) {
+    .wishlist-page__grid { grid-template-columns: repeat(3, 1fr); }
+}
+
+.wish-card {
+    position: relative;
+    margin: 0;
+    border-radius: var(--radius-lg);
+    background: var(--surface-card);
+    border: 1px solid var(--surface-border);
+    box-shadow: var(--shadow-sm), var(--shadow-glass-inset);
+    overflow: hidden;
+}
+
+.wish-card__ribbon {
+    position: absolute;
+    top: 0;
+    left: 14px;
+    z-index: 2;
+    width: 18px;
+    height: 30px;
+    background: var(--gradient-rose-lavender);
+    clip-path: polygon(0 0, 100% 0, 100% 100%, 50% 78%, 0 100%);
+    box-shadow: var(--shadow-sm);
+}
+
+.wish-card__frame {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 4 / 5;
+}
+
+.wish-card__photo { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+
+.wish-card__scrim {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(to top, rgba(10, 6, 20, 0.88) 0%, rgba(10, 6, 20, 0.2) 55%, transparent 80%);
+}
+
+.wish-card__heart {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    z-index: 2;
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(10, 6, 20, 0.4);
+    backdrop-filter: blur(6px);
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    color: var(--dream-moonlight);
+    cursor: pointer;
+}
+
+.wish-card__heart--active {
+    color: var(--dream-pink);
+    background: rgba(255, 182, 201, 0.22);
+}
+
+.wish-card__heart-burst {
+    position: absolute;
+    inset: -4px;
+    border-radius: 50%;
+    background: radial-gradient(circle, var(--dream-pink) 0%, transparent 70%);
+    pointer-events: none;
+}
+
+.wish-card__caption {
+    position: absolute;
+    left: 0; right: 0; bottom: 0;
+    z-index: 1;
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.wish-card__title {
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: 14px;
+    color: var(--dream-moonlight);
+    line-height: 1.2;
+}
+
+.wish-card__note {
+    font-size: 11px;
+    color: var(--text-secondary);
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.wish-card__progress-track {
+    height: 4px;
+    margin: 10px 12px 4px;
+    border-radius: var(--radius-full);
+    background: var(--surface-glass);
+    overflow: hidden;
+}
+
+.wish-card__progress-fill {
+    height: 100%;
+    border-radius: var(--radius-full);
+    background: var(--gradient-rose-lavender);
+}
+
+.wish-card__progress-label {
+    display: block;
+    margin: 0 12px 12px;
+    font-size: 10.5px;
+    color: var(--text-muted);
+}
+
+/* ---- Bottom CTA ---- */
+
+.wishlist-page__cta {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    text-align: center;
+    padding: 12px 16px 4px;
+}
+
+.wishlist-page__cta-text {
+    font-family: var(--font-quote);
+    font-style: italic;
+    font-size: 17px;
+    color: var(--text-secondary);
+}

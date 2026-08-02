@@ -1,6 +1,7 @@
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
+import { motion } from 'framer-motion';
 import { EmojiPickerPopover } from './EmojiPickerPopover';
-
 const QUICK_EMOJIS = ['❤️', '😂', '🥰', '😭', '👍', '✨'];
 
 export const MessageContextMenu = ({ anchorRect, isMine, message, onClose, onAction, onToggleReaction }) => {
@@ -8,21 +9,17 @@ export const MessageContextMenu = ({ anchorRect, isMine, message, onClose, onAct
     const [style, setStyle] = useState({ opacity: 0, top: 0, left: 0 });
 
     const [showPicker, setShowPicker] = useState(false);
+    const [poppedEmoji, setPoppedEmoji] = useState(null);
 
+    // The shared ChatOverlayBackdrop already handles outside-tap-to-close
+    // and background dim/lock. We still listen for Escape here since the
+    // backdrop has no keyboard affordance of its own.
     useEffect(() => {
-        const handleOutsideClick = (e) => {
-            if (menuRef.current && !menuRef.current.contains(e.target)) onClose();
-        };
         const handleEscape = (e) => {
             if (e.key === 'Escape') onClose();
         };
-
-        document.addEventListener('mousedown', handleOutsideClick);
         document.addEventListener('keydown', handleEscape);
-        return () => {
-            document.removeEventListener('mousedown', handleOutsideClick);
-            document.removeEventListener('keydown', handleEscape);
-        };
+        return () => document.removeEventListener('keydown', handleEscape);
     }, [onClose]);
 
     useLayoutEffect(() => {
@@ -56,37 +53,68 @@ export const MessageContextMenu = ({ anchorRect, isMine, message, onClose, onAct
 
     const handleReaction = (emoji) => {
         onToggleReaction(message, emoji);
-        onClose();
+        setPoppedEmoji(emoji);
+        setTimeout(() => {
+            // Close after letting the reaction animation register.
+            onClose();
+        }, 160);
     };
 
-    return (
+    const menu = (
         <div
             ref={menuRef}
-            className={`fixed z-50 w-[310px] bg-white/95 backdrop-blur-md rounded-xl shadow-xl border border-slate-200/60 overflow-visible animate-in fade-in zoom-in-95 duration-150 transition-opacity`}
-            style={style}
+            onClick={(e) => e.stopPropagation()}
+            className="fixed w-[310px] rounded-2xl overflow-visible animate-in fade-in zoom-in-95 duration-150 transition-opacity"
+            style={{
+                ...style,
+                zIndex: 10010,
+                background: 'var(--surface-glass-strong)',
+                backdropFilter: 'blur(var(--blur-lg)) saturate(160%)',
+                WebkitBackdropFilter: 'blur(var(--blur-lg)) saturate(160%)',
+                border: '1px solid var(--surface-border)',
+                boxShadow: 'var(--shadow-floating)',
+            }}
         >
             {/* QUICK REACTIONS SECTION - Hidden if message is already deleted */}
             {message.status !== 'DELETED' && (
-                <div className="relative flex items-center justify-between gap-1 px-3 py-2.5 bg-slate-50/50 border-b border-slate-100">
+                <div
+                    className="relative flex items-center justify-between gap-1 px-3 py-2.5"
+                    style={{ borderBottom: '1px solid var(--surface-border)' }}
+                >
                     {QUICK_EMOJIS.map(emoji => (
-                        <button
+                        <motion.button
                             key={emoji}
                             onClick={() => handleReaction(emoji)}
-                            className="w-9 h-9 flex items-center justify-center bg-white rounded-full border border-slate-200 shadow-sm hover:scale-110 hover:bg-slate-50 transition-all text-lg focus:outline-none"
+                            whileTap={{ scale: 0.85 }}
+                            whileHover={{ scale: 1.14 }}
+                            transition={{ type: 'spring', stiffness: 420, damping: 18 }}
+                            className={`chat-reaction-btn relative w-9 h-9 text-lg focus:outline-none ${poppedEmoji === emoji ? 'reaction-pop' : ''}`}
                         >
                             {emoji}
-                        </button>
+                            {poppedEmoji === emoji && (
+                                <span className="chat-floating-heart text-xs">❤</span>
+                            )}
+                        </motion.button>
                     ))}
-                    <button
-                        onClick={() => setShowPicker(!showPicker)}
-                        className={`w-9 h-9 flex items-center justify-center rounded-full border border-slate-200 shadow-sm transition-all focus:outline-none ${showPicker ? 'bg-indigo-100 text-indigo-600 scale-110' : 'bg-white hover:scale-110 hover:bg-slate-50 text-slate-500'}`}
+                    <motion.button
+                        onClick={() => setShowPicker((v) => !v)}
+                        whileTap={{ scale: 0.85 }}
+                        whileHover={{ scale: 1.14 }}
+                        transition={{ type: 'spring', stiffness: 420, damping: 18 }}
+                        className="chat-reaction-btn w-9 h-9 focus:outline-none"
+                        style={{
+                            background: showPicker ? 'var(--color-primary-soft)' : undefined,
+                            color: showPicker ? 'var(--dream-lavender)' : 'var(--text-secondary)',
+                            borderColor: showPicker ? 'var(--dream-lavender)' : undefined,
+                        }}
                     >
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 4v16m8-8H4" /></svg>
-                    </button>
+                    </motion.button>
 
                     {showPicker && (
                         <EmojiPickerPopover
                             onSelect={handleReaction}
+                            className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 z-[10020]"
                         />
                     )}
                 </div>
@@ -98,4 +126,6 @@ export const MessageContextMenu = ({ anchorRect, isMine, message, onClose, onAct
             </div>
         </div>
     );
+
+    return createPortal(menu, document.body);
 };

@@ -1,3 +1,24 @@
+/* ============================================================
+   SplashScreen.css — premium redesign
+
+   One idea: a single heart breathing in deep midnight, the
+   wordmark resolving beneath it, a hairline divider, a line of
+   feeling, and one quiet way in.
+
+   Rules held throughout:
+   - ONE accent hue (--splash-accent) + ONE secondary (--splash-lav).
+   - ONE clock: every ambient loop is 6s or a clean multiple.
+   - ONE easing curve (SPLASH_EASE, mirrored here).
+   - 8pt spacing scale.
+   - Only opacity and transform are animated. Blur values are
+     static; no animated filters, no full-screen backdrop-filter.
+   ============================================================ */
+
+/* Display face for the wordmark only. Loaded with display=swap and
+   backed by a full serif fallback stack, so a cold/offline launch
+   still renders instantly in Georgia rather than blocking. */
+@import url('https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&display=swap');
+
 .splash {
   position: fixed;
   inset: 0;
@@ -6,139 +27,539 @@
   align-items: center;
   justify-content: center;
   overflow: hidden;
-  background: radial-gradient(
-      120% 120% at 50% 20%,
-      #14141c 0%,
-      #0a0a0f 55%,
-      #000000 100%
-    );
+  /* UI text: system stack — instant, no swap flash, matches the OS. */
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI',
+    system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  cursor: pointer;
 
-  --splash-heart-from: #ff8fa3;
-  --splash-heart-to: #a78bfa;
-  --splash-title-from: #ffffff;
-  --splash-title-to: #c9c9e8;
+  /* --- Palette. Occasion theming overrides these tokens only. --- */
+  --splash-accent: 255 138 174;   /* soft pink */
+  --splash-lav: 186 164 255;      /* lavender  */
+  --splash-ink: 252 248 252;
+  --splash-base-1: #07060d;
+  --splash-base-2: #12101f;
+
+  --splash-display: 'Instrument Serif', 'Cormorant Garamond', 'Playfair Display',
+    'Bodoni Moda', Georgia, 'Times New Roman', serif;
+
+  --splash-ease: cubic-bezier(0.4, 0, 0.2, 1);
+  --splash-clock: 6s;
+
+  /* --- 8pt spacing scale --- */
+  --splash-s1: 8px;
+  --splash-s2: 16px;
+  --splash-s3: 24px;
+  --splash-s4: 32px;
+  --splash-s6: 48px;
+  --splash-s8: 64px;
+
+  /* Profile-driven, overridden inline by SplashScreen.jsx styleVars.
+     Defaults mirror the desktop profile. */
+  --splash-title-size: 64px;
+  --splash-title-tracking: 0.01em;
+  --splash-tagline-size: 15px;
+  --splash-tagline-lh: 1.6;
+  --splash-content-gap: var(--splash-s6);
+  --splash-content-max-w: 420px;
+  --splash-content-padding: var(--splash-s3);
+
+  color: rgb(var(--splash-ink));
+  background:
+    radial-gradient(
+      70% 46% at 50% 30%,
+      rgb(var(--splash-accent) / 0.14),
+      transparent 70%
+    ),
+    radial-gradient(
+      90% 60% at 50% 108%,
+      rgb(var(--splash-lav) / 0.1),
+      transparent 72%
+    ),
+    linear-gradient(180deg, var(--splash-base-2) 0%, var(--splash-base-1) 100%);
 }
 
-/* Phase 3: glass / blur layer sitting above the particles */
-.splash__glass {
+/* ------------------------------------------------------------
+   Aurora — two very slow, very low-opacity bands. They only
+   translate and scale; the blur is baked in and never changes.
+   ------------------------------------------------------------ */
+
+.splash__aurora {
+  position: absolute;
+  inset: -20%;
+  z-index: 0;
+  pointer-events: none;
+  contain: strict;
+}
+
+.splash__aurora-band {
+  position: absolute;
+  display: block;
+  border-radius: 50%;
+  filter: blur(90px);
+  opacity: 0.5;
+  will-change: transform;
+}
+
+.splash__aurora-band--one {
+  width: 70%;
+  height: 46%;
+  left: 4%;
+  top: 12%;
+  background: radial-gradient(
+    circle,
+    rgb(var(--splash-accent) / 0.3),
+    transparent 68%
+  );
+  animation: aurora-drift-a calc(var(--splash-clock) * 6) var(--splash-ease) infinite;
+}
+
+.splash__aurora-band--two {
+  width: 64%;
+  height: 42%;
+  right: 2%;
+  bottom: 8%;
+  background: radial-gradient(
+    circle,
+    rgb(var(--splash-lav) / 0.26),
+    transparent 68%
+  );
+  animation: aurora-drift-b calc(var(--splash-clock) * 8) var(--splash-ease) infinite;
+}
+
+@keyframes aurora-drift-a {
+  0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
+  50%      { transform: translate3d(4%, -3%, 0) scale(1.08); }
+}
+
+@keyframes aurora-drift-b {
+  0%, 100% { transform: translate3d(0, 0, 0) scale(1.04); }
+  50%      { transform: translate3d(-5%, 3%, 0) scale(1); }
+}
+
+/* A static vignette keeps the edges dark so the aurora reads as
+   depth rather than as two coloured blobs. */
+.splash__vignette {
   position: absolute;
   inset: 0;
+  z-index: 1;
   pointer-events: none;
-  backdrop-filter: blur(60px) saturate(120%);
-  -webkit-backdrop-filter: blur(60px) saturate(120%);
   background: radial-gradient(
-    60% 40% at 50% 30%,
-    rgba(167, 139, 250, 0.08),
-    transparent 70%
+    120% 84% at 50% 44%,
+    transparent 38%,
+    rgb(0 0 0 / 0.5) 100%
   );
 }
 
+/* Safe areas — this is a Capacitor shell, the notch is real. */
 .splash__content {
   position: relative;
-  z-index: 1;
+  z-index: 3;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 22px;
-  padding: 24px;
+  gap: var(--splash-content-gap);
+  width: 100%;
+  max-width: var(--splash-content-max-w);
+  padding: calc(var(--splash-content-padding) + env(safe-area-inset-top))
+    var(--splash-content-padding)
+    calc(var(--splash-content-padding) + var(--splash-s8) + env(safe-area-inset-bottom));
   text-align: center;
 }
 
-/* --- Heart (Phase 1) --- */
+/* ------------------------------------------------------------
+   Video — the focal element, replacing the old animated heart.
+   A single cinematic clip: centered, glowing, and otherwise inert
+   CSS-wise. All of its motion lives inside the clip itself; the
+   only thing animated here is the fade-in opacity (handled via an
+   inline style from SplashVideo.jsx) and that is a plain opacity
+   transition, matching the "transform/opacity only" rule.
+   ------------------------------------------------------------ */
 
-.splash-heart {
+.splash-video {
   position: relative;
-  width: 84px;
-  height: 84px;
+  z-index: 2;
+  display: block;
+  width: 100%;
+  max-width: 420px;
+  height: auto;
+  border-radius: 28px;
+  object-fit: cover;
+  background: rgb(0 0 0 / 0.25);
+  /* No interaction target of its own — taps fall through to the
+     splash surface's own click/gesture handlers. */
+  pointer-events: none;
+  /* Subtle pink glow, one soft ring + one wider bloom. Static,
+     never animated — same discipline as the old heart's halo. */
+  box-shadow:
+    0 0 0 1px rgb(var(--splash-ink) / 0.06),
+    0 24px 60px -20px rgb(0 0 0 / 0.6),
+    0 0 46px 6px rgb(var(--splash-accent) / 0.22);
+  transition: opacity 0.5s var(--splash-ease);
+  will-change: opacity;
+}
+
+@media (max-width: 480px) {
+  .splash-video {
+    max-width: 85vw;
+  }
+}
+
+/* A soft, static-radius frame around the hero clip. Wide ambient
+   halo behind it (::before, never animated) and one slow echo ring
+   in front of it (::after) breathing on the shared clock — the same
+   "one heartbeat" language the old SplashHeart used, just given to
+   the video instead of a vector mark. */
+.splash-video-frame {
+  position: relative;
+  z-index: 3;
   display: flex;
   align-items: center;
   justify-content: center;
+  width: 100%;
+  max-width: 420px;
 }
 
-.splash-heart__bloom {
+@media (max-width: 480px) {
+  .splash-video-frame {
+    max-width: 85vw;
+  }
+}
+
+.splash-video-frame::before {
+  content: '';
   position: absolute;
-  inset: -20px;
+  inset: -15%;
+  z-index: 0;
   border-radius: 50%;
   background: radial-gradient(
     circle,
-    rgba(255, 143, 163, 0.35) 0%,
-    rgba(167, 139, 250, 0.18) 45%,
-    transparent 75%
+    rgb(var(--splash-accent) / 0.2) 0%,
+    rgb(var(--splash-lav) / 0.09) 45%,
+    transparent 72%
   );
-  filter: blur(6px);
+  filter: blur(34px);
+  pointer-events: none;
 }
 
-.splash-heart__icon {
-  position: relative;
-  width: 40px;
-  height: 36px;
-  filter: drop-shadow(0 0 14px rgba(255, 143, 163, 0.45));
+.splash-video-frame::after {
+  content: '';
+  position: absolute;
+  inset: 8%;
+  z-index: 1;
+  border-radius: 32px;
+  border: 1px solid rgb(var(--splash-accent) / 0.24);
+  opacity: 0;
+  pointer-events: none;
+  animation: video-echo var(--splash-clock) var(--splash-ease) infinite;
 }
 
-/* --- Title (Phase 2) --- */
-
-.splash__title {
-  display: flex;
-  font-family: -apple-system, BlinkMacSystemFont, 'Inter', system-ui, sans-serif;
-  font-size: 32px;
-  font-weight: 700;
-  letter-spacing: 0.01em;
-  background: linear-gradient(135deg, var(--splash-title-from), var(--splash-title-to));
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
+@keyframes video-echo {
+  0%        { transform: scale(0.96); opacity: 0; }
+  20%       { opacity: 0.3; }
+  70%, 100% { transform: scale(1.05); opacity: 0; }
 }
 
-.splash__letter {
-  display: inline-block;
-  white-space: pre;
-}
+/* ------------------------------------------------------------
+   Wordmark block — retained for layout grouping even though the
+   title text itself moved into the video. `.splash__wordmark` is
+   available if a future screen wants a text lockup again.
+   ------------------------------------------------------------ */
 
-/* --- Status copy (Phase 4) --- */
-
-.splash-loader {
-  min-height: 20px;
+.splash__wordmark {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  align-items: center;
+  gap: var(--splash-s3);
+  width: 100%;
+}
+
+/* ------------------------------------------------------------
+   Divider — hairline, heart, hairline. Low opacity, one slow
+   shimmer travelling across the rules on the shared clock.
+   ------------------------------------------------------------ */
+
+.splash__divider {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--splash-s2);
+  width: min(230px, 68%);
+  color: rgb(var(--splash-accent) / 0.75);
+  will-change: opacity;
+}
+
+.splash__divider-rule {
+  position: relative;
+  flex: 1;
+  height: 1px;
+  overflow: hidden;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgb(var(--splash-ink) / 0.22),
+    transparent
+  );
+}
+
+.splash__divider-rule::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgb(var(--splash-ink) / 0.65),
+    transparent
+  );
+  transform: translate3d(-100%, 0, 0);
+  animation: divider-shimmer calc(var(--splash-clock) * 2) var(--splash-ease) infinite;
+}
+
+@keyframes divider-shimmer {
+  0%, 55%  { transform: translate3d(-100%, 0, 0); }
+  85%, 100% { transform: translate3d(100%, 0, 0); }
+}
+
+.splash__divider-mark {
+  flex: none;
+  width: 13px;
+  height: 12px;
+  color: inherit;
+  filter: drop-shadow(0 0 6px rgb(var(--splash-accent) / 0.5));
+}
+
+/* ------------------------------------------------------------
+   Subtitle — one emotional line, two at most. Height reserved
+   for two lines so nothing below shifts as it appears. Set in the
+   display serif, italic, like a line written by hand rather than
+   typeset UI copy — this is the whole emotional payload of the
+   screen now that the title lives inside the video.
+   ------------------------------------------------------------ */
+
+.splash__subtitle-slot {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--splash-s3);
+  width: 100%;
+  will-change: transform, opacity;
+}
+
+.splash__tagline {
+  margin: 0;
+  font-family: var(--splash-display);
+  font-style: italic;
+  font-weight: 400;
+  font-size: var(--splash-tagline-size);
+  line-height: var(--splash-tagline-lh);
+  letter-spacing: 0.01em;
+  color: rgb(var(--splash-ink) / 0.86);
+  white-space: pre-line;
+  min-height: calc(var(--splash-tagline-lh) * 2em);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  filter: drop-shadow(0 0 18px rgb(var(--splash-accent) / 0.16));
+}
+
+/* ------------------------------------------------------------
+   Status — plain text, no capsule. A frosted pill implies a
+   control; this is a passive status line.
+   ------------------------------------------------------------ */
+
+.splash-loader {
+  min-height: 36px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
 }
 
 .splash-loader--placeholder {
-  min-height: 20px;
+  visibility: hidden;
 }
 
 .splash-loader__line {
+  margin: 0;
   font-size: 13px;
   font-weight: 500;
-  color: rgba(255, 255, 255, 0.65);
-  letter-spacing: 0.01em;
+  letter-spacing: -0.005em;
+  line-height: 1.4;
+  color: rgb(var(--splash-ink) / 0.55);
 }
 
 .splash-loader__line--muted {
   font-size: 12px;
-  color: rgba(255, 255, 255, 0.4);
-  max-width: 260px;
+  font-weight: 400;
+  color: rgb(var(--splash-ink) / 0.34);
 }
 
-/* --- Particles (Phase 3) --- */
+/* ------------------------------------------------------------
+   Particles — starfield and fireflies as ambient depth only.
+   ------------------------------------------------------------ */
 
 .splash-particles {
   position: absolute;
   inset: 0;
   pointer-events: none;
+  z-index: 2;
 }
 
-.splash-particles__dot {
+.splash-particles__star {
   position: absolute;
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.7);
-  box-shadow: 0 0 6px rgba(167, 139, 250, 0.5);
+  background: rgb(var(--splash-ink));
+  opacity: 0.42;
 }
 
+.splash-particles__firefly {
+  position: absolute;
+  border-radius: 50%;
+  background: rgb(var(--splash-accent));
+  box-shadow: 0 0 8px rgb(var(--splash-accent) / 0.45);
+}
+
+.splash-particles__petal {
+  position: absolute;
+  border-radius: 60% 0 60% 0;
+  background: rgb(var(--splash-accent) / 0.34);
+}
+
+.splash-particles__snow {
+  position: absolute;
+  border-radius: 50%;
+  background: rgb(var(--splash-ink) / 0.6);
+}
+
+.splash-particles__shooting-star {
+  position: absolute;
+  width: 2px;
+  height: 2px;
+  border-radius: 50%;
+  background: rgb(var(--splash-ink));
+}
+
+.splash-particles__shooting-star::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  right: 100%;
+  width: 48px;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgb(var(--splash-ink) / 0.55));
+  transform: translateY(-50%);
+}
+
+/* ------------------------------------------------------------
+   Enter — a glass capsule. 44pt target, anchored to the bottom
+   safe area, out of the content column. Focusable, labelled.
+   ------------------------------------------------------------ */
+
+.splash__enter {
+  position: absolute;
+  left: 50%;
+  bottom: calc(var(--splash-s6) + env(safe-area-inset-bottom));
+  transform: translate3d(-50%, 0, 0);
+  z-index: 4;
+
+  min-height: 44px;
+  width: auto;
+  min-width: 156px;
+  padding: 0 var(--splash-s4);
+  gap: 8px;
+  white-space: nowrap;
+
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  font: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: rgb(var(--splash-ink) / 0.88);
+
+  background: linear-gradient(
+    180deg,
+    rgb(var(--splash-ink) / 0.1),
+    rgb(var(--splash-ink) / 0.04)
+  );
+  border: 1px solid rgb(var(--splash-accent) / 0.24);
+  border-radius: 999px;
+  /* Small inner glow, warmed toward the accent rather than a flat
+     neutral shine, so the pill reads as jewelry, not chrome. */
+  box-shadow:
+    inset 0 1px 0 rgb(var(--splash-ink) / 0.14),
+    inset 0 -8px 18px -12px rgb(var(--splash-accent) / 0.55);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+  cursor: pointer;
+  transition:
+    background-color 0.35s var(--splash-ease),
+    border-color 0.35s var(--splash-ease),
+    box-shadow 0.35s var(--splash-ease);
+}
+
+.splash__enter-mark {
+  flex: none;
+  width: 11px;
+  height: 10px;
+  color: rgb(var(--splash-accent) / 0.85);
+}
+
+.splash__enter-label {
+  display: block;
+}
+
+@media (hover: hover) {
+  .splash__enter:hover:not(:disabled) {
+    background-color: rgb(var(--splash-ink) / 0.1);
+    border-color: rgb(var(--splash-accent) / 0.4);
+    box-shadow:
+      inset 0 1px 0 rgb(var(--splash-ink) / 0.2),
+      inset 0 -10px 20px -12px rgb(var(--splash-accent) / 0.7);
+  }
+  /* The lift lives on the label so it never fights Framer Motion's
+     transform on the button itself. */
+  .splash__enter:hover:not(:disabled) .splash__enter-label {
+    transform: translate3d(0, -1px, 0);
+  }
+}
+
+.splash__enter-label {
+  transition: transform 0.35s var(--splash-ease);
+}
+
+.splash__enter:active:not(:disabled) .splash__enter-label {
+  transform: translate3d(0, 0.5px, 0);
+}
+
+.splash__enter:disabled {
+  cursor: default;
+}
+
+.splash__enter:focus-visible {
+  outline: 2px solid rgb(var(--splash-accent));
+  outline-offset: 3px;
+}
+
+/* ------------------------------------------------------------
+   Reduced motion — a real static poster, not a partially
+   animated one. Framer Motion is disabled from JS in parallel
+   (useReducedMotion in SplashScreen.jsx); this covers the CSS.
+   ------------------------------------------------------------ */
+
 @media (prefers-reduced-motion: reduce) {
-  .splash-heart__bloom,
-  .splash-heart__icon,
-  .splash-particles__dot {
+  .splash *,
+  .splash *::before,
+  .splash *::after {
     animation: none !important;
+    transition-duration: 0.01ms !important;
   }
 }

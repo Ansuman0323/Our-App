@@ -1,10 +1,12 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { MessageBubble } from './MessageBubble';
 import { useAutoScroll } from '../hooks/useAutoScroll';
 import { MessageContextMenu } from './MessageContextMenu';
 import { MessageBottomSheet } from './MessageBottomSheet';
 import { MessageActionItem } from './MessageActionItem';
 import { MessageInfoModal } from './MessageInfoModal';
+import { useChatOverlay } from '../contexts/ChatOverlayContext';
 
 const isSameDay = (a, b) =>
     a.getFullYear() === b.getFullYear() &&
@@ -31,11 +33,47 @@ const formatDateDivider = (date) => {
 };
 
 const DateDivider = ({ label }) => (
-    <div className="flex justify-center my-4 first:mt-0 animate-in fade-in duration-300">
-        <span className="bg-white/80 backdrop-blur-sm text-slate-500 text-xs font-semibold px-3.5 py-1.5 rounded-full shadow-sm border border-slate-200/60">
+    <motion.div
+        initial={{ opacity: 0, y: -6 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="flex justify-center my-5 first:mt-0"
+    >
+        <span className="chat-date-pill">
+            <span className="chat-date-pill__heart">♡</span>
             {label}
+            <span className="chat-date-pill__heart">♡</span>
         </span>
-    </div>
+    </motion.div>
+);
+
+const TypingBubble = ({ partnerName }) => (
+    <motion.div
+        initial={{ opacity: 0, y: 8, scale: 0.96 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        exit={{ opacity: 0, y: 8, scale: 0.96 }}
+        transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
+        className="flex justify-start mb-2.5 mt-1"
+    >
+        <div
+            className="flex items-center gap-2 px-4 py-2.5 rounded-2xl rounded-bl-md"
+            style={{
+                background: 'var(--surface-glass)',
+                border: '1px solid var(--surface-border)',
+                backdropFilter: 'blur(var(--blur-md))',
+                WebkitBackdropFilter: 'blur(var(--blur-md))',
+            }}
+        >
+            <span className="chat-typing">
+                <span className="chat-typing__heart">♥</span>
+                <span className="chat-typing__dot" />
+                <span className="chat-typing__dot" />
+                <span className="chat-typing__dot" />
+            </span>
+            <span className="text-[12px] font-medium" style={{ color: 'var(--text-muted)' }}>
+                {partnerName || 'They'} are writing something…
+            </span>
+        </div>
+    </motion.div>
 );
 
 export const MessageList = ({
@@ -51,7 +89,9 @@ export const MessageList = ({
     onDeleteMessageForMe,
     onToggleReaction,
     partnerReceipt,
-    onMarkRead
+    onMarkRead,
+    isPartnerTyping = false,
+    partnerName
 }) => {
     const { scrollRef, handleScroll } = useAutoScroll(messages, isFetchingTop);
     const [latestAnnounce, setLatestAnnounce] = useState('');
@@ -61,6 +101,19 @@ export const MessageList = ({
     const [isMobileMode, setIsMobileMode] = useState(false);
     const [infoMessage, setInfoMessage] = useState(null);
     const [messageToDelete, setMessageToDelete] = useState(null);
+    const { activeOverlay, openOverlay, closeOverlay } = useChatOverlay();
+
+    // If some other overlay (e.g. the composer's emoji/GIF picker) takes
+    // over, make sure our own context menu / bottom sheet state doesn't
+    // linger — only one overlay may ever be visible at a time.
+    useEffect(() => {
+        if (!activeMessage) return;
+        if (activeOverlay !== 'contextMenu' && activeOverlay !== 'bottomSheet') {
+            setActiveMessage(null);
+            setMenuPosition(null);
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [activeOverlay]);
 
     // --- READ RECEIPT TICK STATE ---
     // Maps message id -> its index in the (chronologically ascending) messages array,
@@ -199,15 +252,18 @@ export const MessageList = ({
         if (config.isTouch || window.innerWidth < 768) {
             setIsMobileMode(true);
             setMenuPosition(null);
+            openOverlay('bottomSheet');
         } else {
             setIsMobileMode(false);
             setMenuPosition({ anchorRect: config.anchorRect, isMine: config.isMine });
+            openOverlay('contextMenu');
         }
     };
 
     const handleCloseActions = () => {
         setActiveMessage(null);
         setMenuPosition(null);
+        closeOverlay();
     };
 
     const executeAction = (actionType) => {
@@ -329,7 +385,7 @@ export const MessageList = ({
         <>
             <div aria-live="polite" className="sr-only">{latestAnnounce}</div>
 
-            {activeMessage && !isMobileMode && menuPosition && (
+            {activeMessage && !isMobileMode && menuPosition && activeOverlay === 'contextMenu' && (
                 <MessageContextMenu
                     anchorRect={menuPosition.anchorRect}
                     isMine={menuPosition.isMine}
@@ -340,7 +396,7 @@ export const MessageList = ({
                 />
             )}
 
-            {activeMessage && isMobileMode && (
+            {activeMessage && isMobileMode && activeOverlay === 'bottomSheet' && (
                 <MessageBottomSheet
                     message={activeMessage}
                     onClose={handleCloseActions}
@@ -362,23 +418,34 @@ export const MessageList = ({
             >
                 {isFetchingTop && (
                     <div className="flex justify-center mb-4">
-                        <div className="bg-white/80 backdrop-blur-sm px-4 py-1.5 rounded-full shadow-sm flex items-center gap-2">
-                            <div className="w-3 h-3 border-2 border-slate-300 border-t-indigo-500 rounded-full animate-spin" />
-                            <span className="text-xs font-medium text-slate-500">Loading history...</span>
+                        <div className="chat-date-pill">
+                            <div
+                                className="w-3 h-3 rounded-full animate-spin"
+                                style={{ border: '2px solid var(--surface-border)', borderTopColor: 'var(--dream-pink)' }}
+                            />
+                            Gathering your memories…
                         </div>
                     </div>
                 )}
 
                 {messages.length === 0 && !isFetchingTop ? (
-                    <div className="h-full flex flex-col items-center justify-center text-slate-500 animate-in fade-in zoom-in duration-500">
-                        <div className="w-24 h-24 bg-indigo-100 text-indigo-500 rounded-full flex items-center justify-center text-5xl shadow-sm mb-6">
-                            💜
-                        </div>
-                        <h3 className="text-xl font-bold text-slate-800 mb-2">No messages yet</h3>
-                        <p className="text-sm text-slate-500 max-w-xs text-center">
-                            Start your conversation by sending a message below.
+                    <motion.div
+                        initial={{ opacity: 0, y: 12 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
+                        className="h-full flex flex-col items-center justify-center text-center px-6"
+                    >
+                        <div className="chat-empty-illustration mb-6">💌</div>
+                        <h3
+                            className="text-xl font-bold mb-2"
+                            style={{ fontFamily: 'var(--font-display)', color: 'var(--text-primary)' }}
+                        >
+                            Every love story begins with one message.
+                        </h3>
+                        <p className="text-sm max-w-xs" style={{ color: 'var(--text-muted)' }}>
+                            Say hello, share something sweet, or just tell them you're thinking of them.
                         </p>
-                    </div>
+                    </motion.div>
                 ) : (
                     messages.map((msg, index) => {
                         const prevMsg = messages[index - 1];
@@ -412,26 +479,40 @@ export const MessageList = ({
                         );
                     })
                 )}
+
+                <AnimatePresence>
+                    {isPartnerTyping && messages.length > 0 && <TypingBubble partnerName={partnerName} />}
+                </AnimatePresence>
             </div>
 
             {messageToDelete && (
                 <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 animate-in fade-in duration-200">
-                    <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setMessageToDelete(null)} />
-                    <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm overflow-hidden z-10 animate-in zoom-in-95 duration-200">
+                    <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setMessageToDelete(null)} />
+                    <div
+                        className="rounded-2xl w-full max-w-sm overflow-hidden z-10 animate-in zoom-in-95 duration-200"
+                        style={{
+                            background: 'var(--surface-glass-strong)',
+                            border: '1px solid var(--surface-border)',
+                            boxShadow: 'var(--shadow-floating)',
+                            backdropFilter: 'blur(var(--blur-lg))',
+                            WebkitBackdropFilter: 'blur(var(--blur-lg))',
+                        }}
+                    >
                         <div className="p-5 text-center pb-4">
-                            <h3 className="text-lg font-bold text-slate-800 mb-1">Delete Message?</h3>
-                            <p className="text-sm text-slate-500">
+                            <h3 className="text-lg font-bold mb-1" style={{ color: 'var(--text-primary)' }}>Delete Message?</h3>
+                            <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
                                 {messageToDelete.sender_id === user?.id
                                     ? "You can delete this message for yourself or for everyone."
                                     : "This message will be deleted for you. Other chat members will still be able to see it."}
                             </p>
                         </div>
-                        <div className="flex flex-col border-t border-slate-100">
+                        <div className="flex flex-col" style={{ borderTop: '1px solid var(--surface-border)' }}>
 
                             {messageToDelete.sender_id === user?.id && (
                                 <button
                                     onClick={() => { onDeleteMessage(messageToDelete); setMessageToDelete(null); }}
-                                    className="w-full py-3.5 text-sm font-bold text-red-600 hover:bg-red-50 transition-colors border-b border-slate-100"
+                                    className="w-full py-3.5 text-sm font-bold transition-colors"
+                                    style={{ color: 'var(--color-danger)', borderBottom: '1px solid var(--surface-border)' }}
                                 >
                                     Delete for Everyone
                                 </button>
@@ -439,14 +520,16 @@ export const MessageList = ({
 
                             <button
                                 onClick={() => { onDeleteMessageForMe(messageToDelete); setMessageToDelete(null); }}
-                                className="w-full py-3.5 text-sm font-bold text-red-600 hover:bg-red-50 transition-colors border-b border-slate-100"
+                                className="w-full py-3.5 text-sm font-bold transition-colors"
+                                style={{ color: 'var(--color-danger)', borderBottom: '1px solid var(--surface-border)' }}
                             >
                                 Delete for Me
                             </button>
 
                             <button
                                 onClick={() => setMessageToDelete(null)}
-                                className="w-full py-3.5 text-sm font-semibold text-slate-600 hover:bg-slate-50 transition-colors"
+                                className="w-full py-3.5 text-sm font-semibold transition-colors"
+                                style={{ color: 'var(--text-secondary)' }}
                             >
                                 Cancel
                             </button>

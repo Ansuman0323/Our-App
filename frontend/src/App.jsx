@@ -1,6 +1,5 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useRef, useState } from 'react';
 import { RouterProvider } from 'react-router-dom';
-import { AnimatePresence } from 'framer-motion';
 import { AuthProvider } from './contexts/AuthContext';
 import { router } from './components/routes/index';
 import { Toaster } from 'react-hot-toast';
@@ -9,23 +8,32 @@ import SplashScreen from './components/splash/SplashScreen';
 import { useBackendHealth } from './components/splash/useBackendHealth';
 
 export default function App() {
-  console.log("API:", import.meta.env.VITE_API_URL);
-  console.log("SOCKET:", import.meta.env.VITE_SOCKET_URL);
-
   const { isReady, statusMessage } = useBackendHealth();
-  const [showSplash, setShowSplash] = useState(true);
+
+  // Whether the splash is still in the tree. Starts true, flips to
+  // false exactly once, permanently, when the exit animation
+  // finishes. This is intentionally a SEPARATE state from `isReady` —
+  // it's driven only by the completion callback, never by re-renders.
+  const [splashVisible, setSplashVisible] = useState(true);
+
+  // Belt-and-braces: ensures we only ever act on the first time the
+  // splash reports it has finished exiting.
+  const hasUnmountedSplashRef = useRef(false);
 
   const handleSplashExitComplete = useCallback(() => {
-    setShowSplash(false);
+    if (hasUnmountedSplashRef.current) return;
+    hasUnmountedSplashRef.current = true;
+    setSplashVisible(false);
   }, []);
 
   return (
     <>
       {/*
-        The real app mounts as soon as the backend responds. It sits
-        UNDER the splash while the splash fades out, so there's no
-        blank flash and no hard cut — just the splash dissolving to
-        reveal the app that's already there.
+        The real app mounts the instant the backend responds
+        (isReady flips false -> true exactly once, ever), sitting
+        UNDERNEATH the splash. The splash then fades out on top of it
+        and reports back when done — so there's no blank flash and no
+        hard cut, and this subtree mounts exactly once per page load.
       */}
       {isReady && (
         <AuthProvider>
@@ -56,15 +64,19 @@ export default function App() {
         </AuthProvider>
       )}
 
-      <AnimatePresence>
-        {showSplash && (
-          <SplashScreen
-            ready={isReady}
-            statusMessage={statusMessage}
-            onExitComplete={handleSplashExitComplete}
-          />
-        )}
-      </AnimatePresence>
+      {/*
+        Plain conditional — no AnimatePresence needed. SplashScreen
+        finishes its own fade-out internally and only THEN calls
+        onExitComplete, so by the time we stop rendering it here,
+        there's nothing left to animate out.
+      */}
+      {splashVisible && (
+        <SplashScreen
+          ready={isReady}
+          statusMessage={statusMessage}
+          onExitComplete={handleSplashExitComplete}
+        />
+      )}
     </>
   );
 }

@@ -103,7 +103,10 @@ Our-App
 │   ├── package.json
 │   ├── public
 │   │   ├── favicon.svg
-│   │   └── icons.svg
+│   │   ├── icons.svg
+│   │   └── splash
+│   │       ├── together.mp4
+│   │       └── Together2.mp4
 │   ├── README.md
 │   ├── src
 │   │   ├── app
@@ -120,12 +123,34 @@ Our-App
 │   │   │   ├── routes
 │   │   │   │   ├── index.jsx
 │   │   │   │   └── ProtectedRoute.jsx
-│   │   │   └── splash
-│   │   │       ├── SplashHeart.jsx
-│   │   │       ├── SplashParticles.jsx
-│   │   │       ├── SplashScreen.css
-│   │   │       ├── SplashScreen.jsx
-│   │   │       └── useBackendHealth.js
+│   │   │   ├── splash
+│   │   │   │   ├── HeartGlyph.jsx
+│   │   │   │   ├── motionConstants.js
+│   │   │   │   ├── sceneProfiles.js
+│   │   │   │   ├── SplashHeart.jsx
+│   │   │   │   ├── SplashLoader.jsx
+│   │   │   │   ├── splashOccasion.js
+│   │   │   │   ├── SplashParticles.jsx
+│   │   │   │   ├── splashQuotes.js
+│   │   │   │   ├── SplashScreen.css
+│   │   │   │   ├── SplashScreen.jsx
+│   │   │   │   ├── SplashTypewriter.jsx
+│   │   │   │   ├── SplashVideo.jsx
+│   │   │   │   ├── useBackendHealth.js
+│   │   │   │   ├── useSceneProfile.js
+│   │   │   │   └── useSplashSkipGesture.js
+│   │   │   └── ui
+│   │   │       ├── Divider.jsx
+│   │   │       ├── EmptyState.jsx
+│   │   │       ├── GlassBadge.jsx
+│   │   │       ├── GlassButton.jsx
+│   │   │       ├── GlassCard.jsx
+│   │   │       ├── GlassInput.jsx
+│   │   │       ├── index.js
+│   │   │       ├── LoadingSkeleton.jsx
+│   │   │       ├── PageBackground.jsx
+│   │   │       ├── PremiumAvatar.jsx
+│   │   │       └── SectionHeader.jsx
 │   │   ├── contexts
 │   │   │   └── AuthContext.jsx
 │   │   ├── features
@@ -212,6 +237,9 @@ Our-App
 │   │   │   │   ├── components
 │   │   │   │   │   ├── ConnectedState.jsx
 │   │   │   │   │   ├── DashboardHeader.jsx
+│   │   │   │   │   ├── FloatingQuote.jsx
+│   │   │   │   │   ├── MemoriesCarousel.jsx
+│   │   │   │   │   ├── StoryTimeline.jsx
 │   │   │   │   │   ├── WaitingState.jsx
 │   │   │   │   │   ├── WidgetCard.jsx
 │   │   │   │   │   └── WidgetGrid.jsx
@@ -229,8 +257,14 @@ Our-App
 │   │   │   ├── memories
 │   │   │   │   ├── api.js
 │   │   │   │   ├── components
+│   │   │   │   │   ├── FeaturedMemory.jsx
+│   │   │   │   │   ├── MemoryTimeline.jsx
+│   │   │   │   │   └── PolaroidShelf.jsx
+│   │   │   │   ├── data
+│   │   │   │   │   └── mockMemories.js
 │   │   │   │   ├── hooks
 │   │   │   │   ├── pages
+│   │   │   │   │   └── Memories.jsx
 │   │   │   │   ├── services
 │   │   │   │   └── utils
 │   │   │   ├── notifications
@@ -248,15 +282,30 @@ Our-App
 │   │   │   ├── planner
 │   │   │   │   ├── api.js
 │   │   │   │   ├── components
+│   │   │   │   │   ├── AnniversaryCountdown.jsx
+│   │   │   │   │   ├── BucketList.jsx
+│   │   │   │   │   ├── DestinationCarousel.jsx
+│   │   │   │   │   ├── OccasionTimeline.jsx
+│   │   │   │   │   ├── StickyNoteBoard.jsx
+│   │   │   │   │   ├── TodayChecklist.jsx
+│   │   │   │   │   └── UpcomingDateCard.jsx
+│   │   │   │   ├── data
+│   │   │   │   │   └── mockPlans.js
 │   │   │   │   ├── hooks
 │   │   │   │   ├── pages
+│   │   │   │   │   └── Planner.jsx
 │   │   │   │   ├── services
 │   │   │   │   └── utils
 │   │   │   └── wishlist
 │   │   │       ├── api.js
 │   │   │       ├── components
+│   │   │       │   ├── CategoryFilter.jsx
+│   │   │       │   └── WishCard.jsx
+│   │   │       ├── data
+│   │   │       │   └── mockWishlist.js
 │   │   │       ├── hooks
 │   │   │       ├── pages
+│   │   │       │   └── Wishlist.jsx
 │   │   │       ├── services
 │   │   │       └── utils
 │   │   ├── hooks
@@ -268,7 +317,11 @@ Our-App
 │   │   ├── main.jsx
 │   │   ├── routes
 │   │   ├── styles
-│   │   │   └── global.css
+│   │   │   ├── design-system.css
+│   │   │   ├── global.css
+│   │   │   ├── memories.css
+│   │   │   ├── planner.css
+│   │   │   └── wishlist.css
 │   │   └── utils
 │   │       ├── api.js
 │   │       └── services

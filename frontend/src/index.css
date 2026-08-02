@@ -1,2 +1,6 @@
 @import "tailwindcss";
 @import "./styles/global.css";
+@import "./styles/design-system.css";
+@import "./styles/planner.css";
+@import "./styles/memories.css";
+@import "./styles/wishlist.css";

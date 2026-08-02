@@ -1,15 +1,16 @@
 import React from 'react';
 import { motion, useReducedMotion } from 'framer-motion';
 
-// Each variant now styles both the icon chip and the card's own
-// background wash, so colour carries across the whole tile the way
-// it does in the reference — while staying within the app's existing
-// pastel "-soft" tokens rather than introducing new saturated colors.
+// Each variant styles both the icon chip and the card's own background
+// wash, so colour carries across the whole tile the way it does in the
+// reference — while staying within the app's pastel "-soft" glass
+// tokens (all rgba-based) rather than mixing with white/black, which
+// keeps every chip legible against the dark glass surface.
 const VARIANT_STYLES = {
     neutral: {
         iconBg: 'var(--accent-soft)',
         iconColor: 'var(--color-primary)',
-        cardBg: 'linear-gradient(165deg, var(--surface-page), var(--surface-card))',
+        cardBg: 'linear-gradient(165deg, var(--surface-glass), var(--surface-card))',
     },
     indigo: {
         iconBg: 'var(--color-primary-soft)',
@@ -17,14 +18,14 @@ const VARIANT_STYLES = {
         cardBg: 'linear-gradient(165deg, var(--color-primary-soft), var(--surface-card))',
     },
     lavender: {
-        iconBg: 'color-mix(in srgb, var(--color-secondary) 18%, white)',
+        iconBg: 'var(--color-secondary-soft)',
         iconColor: 'var(--color-secondary)',
         cardBg: 'linear-gradient(165deg, var(--color-secondary-soft), var(--surface-card))',
     },
     rose: {
-        iconBg: 'color-mix(in srgb, var(--color-accent) 16%, white)',
+        iconBg: 'var(--color-pink-soft)',
         iconColor: 'var(--color-accent)',
-        cardBg: 'linear-gradient(165deg, color-mix(in srgb, var(--color-accent) 14%, white), var(--surface-card))',
+        cardBg: 'linear-gradient(165deg, var(--color-pink-soft), var(--surface-card))',
     },
     emerald: {
         iconBg: 'var(--color-success-soft)',
@@ -54,7 +55,7 @@ const VARIANT_STYLES = {
     // Reserved for the single featured/hero tile — a solid warm wash
     // rather than a white-to-tint gradient, since it carries on-color text.
     gradient: {
-        iconBg: 'rgba(255, 255, 255, 0.24)',
+        iconBg: 'rgba(255, 255, 255, 0.22)',
         iconColor: 'var(--color-on-color)',
         cardBg: 'var(--gradient-sunset)',
     },
@@ -67,12 +68,12 @@ const VARIANT_STYLES = {
 // so one tap drives the squish, the icon pop, the chevron nudge and
 // the glow pulse together instead of only the card's own shadow.
 const cardVariants = {
-    hidden: { opacity: 0, y: 12, scale: 1 },
+    hidden: { opacity: 0, y: 16, scale: 0.97 },
     visible: (i) => ({
         opacity: 1,
         y: 0,
         scale: 1,
-        transition: { duration: 0.2, ease: [0.4, 0, 0.2, 1], delay: i * 0.05 },
+        transition: { duration: 0.55, ease: [0.16, 1, 0.3, 1], delay: i * 0.06 },
     }),
     pressed: {
         scale: 0.95,
@@ -122,16 +123,30 @@ const glowVariants = {
     pressed: { opacity: 1, scale: 1, transition: { duration: 0.3, ease: [0.4, 0, 0.2, 1] } },
 };
 
-export const WidgetCard = ({ title, icon, children, footer, variant = 'neutral', index = 0, layout = 'default' }) => {
+export const WidgetCard = ({ title, icon, image, children, footer, variant = 'neutral', index = 0, layout = 'default' }) => {
     const styles = VARIANT_STYLES[variant] || VARIANT_STYLES.neutral;
     const isHero = layout === 'hero';
+    // 'wide' = the memory-first, full-width photo tile (polaroid framing
+    // when an image exists, a graceful "waiting for a photo" wash when
+    // it doesn't). 'quote' = a full-width tile styled like the header's
+    // quote strip instead of a normal card, for anything message-like.
+    const isWide = layout === 'wide';
+    const isQuote = layout === 'quote';
     const reducedMotion = useReducedMotion();
+
+    const layoutClass = isHero
+        ? ' widget-card--hero'
+        : isWide
+            ? ' widget-card--wide'
+            : isQuote
+                ? ' widget-card--quote'
+                : '';
 
     return (
         <motion.button
             type="button"
-            className={`widget-card${isHero ? ' widget-card--hero' : ''}`}
-            style={{ background: styles.cardBg }}
+            className={`widget-card${layoutClass}`}
+            style={isQuote || isWide ? undefined : { background: styles.cardBg }}
             custom={index}
             variants={cardVariants}
             initial="hidden"
@@ -148,35 +163,57 @@ export const WidgetCard = ({ title, icon, children, footer, variant = 'neutral',
                 aria-hidden="true"
             />
 
-            <motion.span
-                className="widget-card__icon"
-                custom={{ index, reducedMotion }}
-                variants={iconVariants}
-                style={{ background: styles.iconBg, color: styles.iconColor }}
-                aria-hidden="true"
-            >
-                {icon}
-            </motion.span>
-            <span className="widget-card__body">
-                <span className="widget-card__title">{title}</span>
-                <span className="widget-card__content">{children}</span>
-                {footer && <span className="widget-card__footer">{footer}</span>}
-            </span>
-            <motion.span className="widget-card__chevron" variants={chevronVariants} aria-hidden="true">
-                <svg
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    xmlns="http://www.w3.org/2000/svg"
-                >
-                    <path
-                        d="M9 6l6 6-6 6"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                    />
-                </svg>
-            </motion.span>
+            {isWide ? (
+                <span className={`widget-card__frame${image ? '' : ' widget-card__frame--empty'}`}>
+                    {image ? (
+                        <img className="widget-card__photo" src={image} alt="" loading="lazy" />
+                    ) : (
+                        <span className="widget-card__frame-glyph" aria-hidden="true">{icon}</span>
+                    )}
+                    <span className="widget-card__frame-caption">
+                        <span className="widget-card__title">{title}</span>
+                        <span className="widget-card__content">{children}</span>
+                    </span>
+                </span>
+            ) : (
+                <>
+                    <motion.span
+                        className={`widget-card__icon${image ? ' widget-card__icon--photo' : ''}`}
+                        custom={{ index, reducedMotion }}
+                        variants={iconVariants}
+                        style={image ? undefined : { background: styles.iconBg, color: styles.iconColor }}
+                        aria-hidden="true"
+                    >
+                        {image ? <img src={image} alt="" loading="lazy" /> : icon}
+                    </motion.span>
+                    <span className="widget-card__body">
+                        {isQuote && (
+                            <span className="widget-card__quote-mark" aria-hidden="true">&ldquo;</span>
+                        )}
+                        <span className="widget-card__title">{title}</span>
+                        <span className="widget-card__content">{children}</span>
+                        {footer && <span className="widget-card__footer">{footer}</span>}
+                    </span>
+                </>
+            )}
+
+            {!isWide && (
+                <motion.span className="widget-card__chevron" variants={chevronVariants} aria-hidden="true">
+                    <svg
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        xmlns="http://www.w3.org/2000/svg"
+                    >
+                        <path
+                            d="M9 6l6 6-6 6"
+                            stroke="currentColor"
+                            strokeWidth="2"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                        />
+                    </svg>
+                </motion.span>
+            )}
         </motion.button>
     );
 };

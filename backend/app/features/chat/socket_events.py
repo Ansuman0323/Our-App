@@ -127,21 +127,34 @@ Joined Rooms : {socketio.server.rooms(request.sid)}
         if became_online:
             emit(
                 "presence_changed",
-                {"user_id": session["user_id"], "status": "online"},
+                {"user_id": session["user_id"], "status": "online", "last_seen": None},
                 room=active_space,
                 include_self=False
             )
 
+        # ---------------------------------------------------------
+        # Always tell the newly-connected client the partner's TRUE
+        # current status — online AND offline. Previously this only
+        # fired for the online case, so a client that reconnected
+        # after the partner went offline kept showing a stale
+        # "online" state with nothing to correct it.
+        # ---------------------------------------------------------
         partner = (
             SpaceMember.query.filter(
                 SpaceMember.space_id == active_space,
                 SpaceMember.user_id != user.id
             ).first()
         )
-        if partner and presence_manager.is_online(str(partner.user_id)):
+        if partner:
+            partner_id = str(partner.user_id)
+            partner_online = presence_manager.is_online(partner_id)
             emit(
                 "presence_changed",
-                {"user_id": str(partner.user_id), "status": "online"},
+                {
+                    "user_id": partner_id,
+                    "status": "online" if partner_online else "offline",
+                    "last_seen": None if partner_online else presence_manager.get_last_seen(partner_id),
+                },
                 to=request.sid
             )
 
@@ -173,7 +186,15 @@ def handle_disconnect():
     if room_name:
         leave_room(room_name)
         if is_completely_offline:
-            emit('presence_changed', {'user_id': user_id, 'status': 'offline'}, room=room_name)
+            emit(
+                'presence_changed',
+                {
+                    'user_id': user_id,
+                    'status': 'offline',
+                    'last_seen': presence_manager.get_last_seen(user_id),
+                },
+                room=room_name
+            )
 
     logger.info("Socket disconnected", extra={"user_id": user_id, "sid": request.sid})
 

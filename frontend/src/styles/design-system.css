@@ -1,0 +1,1478 @@
+/*
+  Together — "Our Little World" dream-journal redesign
+  =====================================================
+  Continues the splash screen's atmosphere (twilight purple, soft pink
+  glow, floating particles, cinematic lighting) into every screen
+  after it, instead of the disconnected stationery-notebook look the
+  dashboard had before.
+
+  Import order in index.css is unchanged:
+
+      @import "tailwindcss";
+      @import "./styles/global.css";
+      @import "./styles/design-system.css";
+
+  This file is imported LAST, so every :root token and selector below
+  overrides the same name in global.css. No JSX, hooks, routing,
+  state, or component hierarchy touched anywhere — pure re-skin.
+
+  Assumptions (their source components weren't in the files
+  reviewed): `.divider`, `.empty-state` (+ __icon/__title/__subtitle)
+  and `.loading-skeleton` are styled against the conventional BEM
+  names implied by how <Divider/>, <EmptyState/>, <LoadingSkeleton/>
+  are invoked in Dashboard.jsx / WaitingState.jsx.
+*/
+
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=Cormorant+Garamond:ital,wght@1,500&family=Caveat:wght@500;600&family=Inter:wght@400;500;600;700&display=swap');
+
+:root {
+  /* ---------------------------------- */
+  /* Palette — twilight dream journal    */
+  /* Background stays dark everywhere;   */
+  /* these are highlight/accent only.    */
+  /* ---------------------------------- */
+  --dream-bg-1: #1a1625;
+  --dream-bg-2: #221b33;
+  --dream-bg-3: #2a2040;
+  --dream-bg-4: #31264a;
+  --dream-lavender: #c9b6ff;
+  --dream-pink: #ffb6c9;
+  --dream-rosegold: #e3b7a0;
+  --dream-peach: #ffcba4;
+  --dream-moonlight: #f5f1ff;
+
+  --color-primary: var(--dream-lavender);
+  --color-primary-soft: rgba(201, 182, 255, 0.16);
+  --color-secondary: var(--dream-pink);
+  --color-secondary-soft: rgba(255, 182, 201, 0.16);
+  --color-accent: var(--dream-rosegold);
+  --color-success: #9fd6c2;
+  --color-success-soft: rgba(159, 214, 194, 0.16);
+  --color-warning: var(--dream-peach);
+  --color-danger: #ff8f9e;
+  --color-on-color: var(--dream-moonlight);
+
+  --color-pink: var(--dream-pink);
+  --color-pink-soft: rgba(255, 182, 201, 0.16);
+  --color-mint: #9fd6c2;
+  --color-mint-soft: rgba(159, 214, 194, 0.16);
+  --color-peach: var(--dream-peach);
+  --color-peach-soft: rgba(255, 203, 164, 0.16);
+  --color-blue: #b7c8ff;
+  --color-blue-soft: rgba(183, 200, 255, 0.16);
+
+  --gradient-rose-lavender: linear-gradient(135deg, var(--dream-pink), var(--dream-lavender));
+  --gradient-indigo-lavender: linear-gradient(135deg, #8a6fd6, var(--dream-lavender));
+  --gradient-peach-rose: linear-gradient(135deg, var(--dream-peach), var(--dream-rosegold));
+  --gradient-mint-emerald: linear-gradient(135deg, #6fc2a3, #9fd6c2);
+  /* Muted jewel-tone wash for the one hero/featured surface — deep
+     enough to keep moonlight-white text readable directly on top. */
+  --gradient-sunset: linear-gradient(150deg, #6b4f7a 0%, #8a5a72 48%, #5a4a7a 100%);
+  --gradient-header-wash: linear-gradient(120deg, rgba(255, 182, 201, 0.14) 0%, rgba(201, 182, 255, 0.14) 55%, rgba(227, 183, 160, 0.12) 100%);
+
+  /* The shared backdrop: same dark base + soft bloom as the splash,
+     not a flat fill. */
+  --gradient-midnight:
+    radial-gradient(ellipse 90% 60% at 15% -5%, rgba(201, 182, 255, 0.16) 0%, transparent 55%),
+    radial-gradient(ellipse 80% 55% at 95% 15%, rgba(255, 182, 201, 0.13) 0%, transparent 55%),
+    radial-gradient(ellipse 75% 55% at 50% 115%, rgba(227, 183, 160, 0.1) 0%, transparent 55%),
+    linear-gradient(160deg, var(--dream-bg-4) 0%, var(--dream-bg-3) 40%, var(--dream-bg-2) 75%, var(--dream-bg-1) 100%);
+
+  --surface-page: var(--dream-bg-1);
+  --surface-card: rgba(255, 255, 255, 0.055);
+  --surface-chat: rgba(20, 16, 30, 0.92);
+  --surface-glass: rgba(255, 255, 255, 0.07);
+  --surface-glass-strong: rgba(26, 22, 37, 0.78);
+  --surface-border: rgba(245, 241, 255, 0.12);
+
+  --text-primary: var(--dream-moonlight);
+  --text-secondary: rgba(245, 241, 255, 0.72);
+  --text-muted: rgba(245, 241, 255, 0.5);
+
+  --radius-sm: 14px;
+  --radius-md: 18px;
+  --radius-lg: 24px;
+  --radius-xl: 30px;
+
+  /* Soft, luminous shadows — bloom, not hard drop-shadow. */
+  --shadow-sm: 0 2px 8px rgba(10, 6, 20, 0.3);
+  --shadow-md: 0 8px 24px rgba(10, 6, 20, 0.34);
+  --shadow-lg: 0 16px 40px rgba(10, 6, 20, 0.38);
+  --shadow-floating: 0 22px 56px rgba(10, 6, 20, 0.42), 0 6px 16px rgba(10, 6, 20, 0.28);
+  --shadow-glow-primary: 0 0 32px rgba(201, 182, 255, 0.32);
+  --shadow-glow-accent: 0 0 32px rgba(255, 182, 201, 0.3);
+  --shadow-glass-inset: inset 0 1px 0 rgba(255, 255, 255, 0.14);
+
+  --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
+  --font-display: 'Playfair Display', serif;
+  --font-quote: 'Cormorant Garamond', serif;
+
+  --background: var(--surface-page);
+  --foreground: var(--text-primary);
+  --accent: var(--color-primary);
+  --accent-soft: var(--color-primary-soft);
+  --accent-contrast: var(--color-on-color);
+  --surface: var(--surface-card);
+  --surface-muted: var(--surface-page);
+  --border-subtle: var(--surface-border);
+  --success: var(--color-success);
+  --success-soft: var(--color-success-soft);
+  --danger: var(--color-danger);
+}
+
+/* ---------------------------------- */
+/* Base                                */
+/* ---------------------------------- */
+
+body {
+  background: var(--gradient-midnight) fixed;
+  background-color: var(--dream-bg-1);
+  font-family: var(--font-sans);
+  color: var(--text-primary);
+}
+
+.app-shell { background: transparent; }
+
+/* ---------------------------------- */
+/* App header — floating glass, quiet  */
+/* ---------------------------------- */
+
+.app-header {
+  background: var(--surface-glass-strong);
+  border-bottom: 1px solid var(--surface-border);
+  backdrop-filter: saturate(160%) blur(14px);
+  -webkit-backdrop-filter: saturate(160%) blur(14px);
+}
+
+.app-header__mark {
+  background: var(--gradient-rose-lavender);
+  color: var(--dream-bg-1);
+}
+
+.app-header__title {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 18px;
+  letter-spacing: 0.01em;
+  color: var(--dream-moonlight);
+}
+
+/* ---------------------------------- */
+/* Bottom navigation — floating glass, */
+/* no toolbar feel                     */
+/* ---------------------------------- */
+
+.bottom-nav {
+  background: var(--surface-glass-strong);
+  border: 1px solid var(--surface-border);
+  box-shadow: var(--shadow-floating), var(--shadow-glass-inset);
+  backdrop-filter: saturate(180%) blur(24px);
+  -webkit-backdrop-filter: saturate(180%) blur(24px);
+}
+
+.bottom-nav__glow {
+  background: var(--color-primary-soft);
+  box-shadow: 0 0 0 1px rgba(201, 182, 255, 0.25), var(--shadow-glow-primary);
+}
+
+.bottom-nav__item { color: var(--text-muted); }
+.bottom-nav__item--active { color: var(--dream-moonlight); }
+
+/* ---------------------------------- */
+/* Dashboard hero — dream journal cover*/
+/* ---------------------------------- */
+
+.dashboard-header {
+  background: var(--gradient-header-wash), var(--surface-card);
+  border: 1px solid var(--surface-border);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-floating), var(--shadow-glass-inset);
+  backdrop-filter: blur(6px);
+}
+
+.dashboard-header::before {
+  background:
+    radial-gradient(240px 200px at 92% -10%, rgba(201, 182, 255, 0.24), transparent 70%),
+    radial-gradient(220px 200px at -5% 110%, rgba(255, 182, 201, 0.2), transparent 70%),
+    radial-gradient(180px 180px at 60% 130%, rgba(227, 183, 160, 0.14), transparent 70%);
+}
+
+.dashboard-header::after {
+  background:
+    radial-gradient(3px 3px at 78% 18%, rgba(201, 182, 255, 0.55), transparent 100%),
+    radial-gradient(3px 3px at 88% 55%, rgba(255, 182, 201, 0.5), transparent 100%),
+    radial-gradient(2.5px 2.5px at 15% 30%, rgba(255, 203, 164, 0.45), transparent 100%),
+    radial-gradient(2.5px 2.5px at 32% 75%, rgba(201, 182, 255, 0.4), transparent 100%);
+}
+
+.dashboard-header__eyebrow {
+  color: var(--text-muted);
+  font-family: var(--font-sans);
+  font-weight: 600;
+}
+
+.dashboard-header__name {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 34px;
+  color: var(--dream-moonlight);
+  letter-spacing: 0.005em;
+}
+
+.dashboard-header__status {
+  background: var(--surface-glass);
+  border: 1px solid var(--surface-border);
+  color: var(--text-secondary);
+}
+
+.dashboard-header__stat-value {
+  font-family: var(--font-display);
+  color: var(--dream-moonlight);
+}
+
+.dashboard-header__stat-label { color: var(--text-muted); }
+
+.dashboard-header__quote {
+  border-top: 1px solid var(--surface-border);
+  font-family: var(--font-quote);
+  font-style: italic;
+  font-size: 19px;
+  color: var(--text-secondary);
+}
+
+.dashboard-header__quote-mark { color: var(--dream-rosegold); }
+
+.dashboard-header__logout {
+  background: var(--surface-glass);
+  border: 1px solid var(--surface-border);
+  color: var(--text-muted);
+}
+
+@media (hover: hover) {
+  .dashboard-header__logout:hover {
+    color: var(--dream-pink);
+    box-shadow: var(--shadow-glow-accent);
+  }
+}
+
+/* ---------------------------------- */
+/* Premium avatar — soft moonlight disc*/
+/* ---------------------------------- */
+
+.premium-avatar {
+  background: var(--gradient-indigo-lavender);
+  background-size: 180% 180%;
+  color: var(--dream-bg-1);
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  box-shadow: var(--shadow-glow-primary), var(--shadow-glass-inset);
+}
+
+/* ---------------------------------- */
+/* Section headers — warm, storytelling*/
+/* ---------------------------------- */
+
+.section-header__title {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 21px;
+  color: var(--dream-moonlight);
+}
+
+.section-header__action {
+  color: var(--dream-lavender);
+  font-weight: 600;
+  font-size: 13px;
+}
+
+/* ---------------------------------- */
+/* Glass* — gentle keepsake surfaces    */
+/* ---------------------------------- */
+
+.glass-surface {
+  background: var(--surface-card);
+  border: 1px solid var(--surface-border);
+  box-shadow: var(--shadow-sm), var(--shadow-glass-inset);
+}
+
+.glass-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
+  border-radius: 999px;
+  background: var(--color-primary-soft);
+  color: var(--dream-lavender);
+  font-size: 12px;
+  font-weight: 600;
+  border: 1px solid rgba(201, 182, 255, 0.2);
+}
+
+.glass-badge__dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--color-success);
+  box-shadow: 0 0 0 3px rgba(159, 214, 194, 0.22);
+}
+
+.glass-button {
+  border-radius: 999px;
+  font-family: var(--font-sans);
+  font-weight: 600;
+  border: none;
+}
+
+.glass-button--primary {
+  background: var(--gradient-rose-lavender);
+  color: var(--dream-bg-1);
+  box-shadow: var(--shadow-glow-accent), var(--shadow-glow-primary);
+}
+
+.glass-button--secondary {
+  background: var(--surface-card);
+  color: var(--dream-moonlight);
+  border: 1px solid var(--surface-border);
+}
+
+.glass-icon-button {
+  background: var(--surface-card);
+  border: 1px solid var(--surface-border);
+  color: var(--text-muted);
+  border-radius: 999px;
+}
+
+/* ---------------------------------- */
+/* Widget grid — little keepsakes, not */
+/* dashboard tiles. Soft glass float,  */
+/* no stickers, no rotation gimmicks.  */
+/* ---------------------------------- */
+
+.widget-card {
+  background: var(--surface-card);
+  border: 1px solid var(--surface-border);
+  box-shadow: var(--shadow-sm), var(--shadow-glass-inset);
+}
+
+.widget-card::before {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.08), transparent 50%);
+}
+
+@media (hover: hover) {
+  .widget-card:hover {
+    box-shadow: var(--shadow-floating), var(--shadow-glass-inset);
+    border-color: rgba(245, 241, 255, 0.22);
+    transform: translateY(-3px);
+  }
+}
+
+.widget-card__title {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 15px;
+  color: var(--dream-moonlight);
+}
+
+.widget-card__content { color: var(--text-secondary); }
+.widget-card__footer { color: var(--dream-rosegold); }
+
+.widget-card__chevron {
+  background: var(--surface-glass);
+  color: var(--text-muted);
+}
+
+.widget-card--hero {
+  background: var(--gradient-sunset) !important;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+}
+
+.widget-card--hero .widget-card__title,
+.widget-card--hero .widget-card__content,
+.widget-card--hero .widget-card__footer {
+  color: var(--dream-moonlight);
+}
+
+.widget-card--hero .widget-card__title {
+  font-family: var(--font-display);
+  font-size: 17px;
+}
+
+/* ---------------------------------- */
+/* Connected state footer note         */
+/* ---------------------------------- */
+
+.connected-state__footer {
+  background: var(--gradient-header-wash), var(--surface-card);
+  border: 1px solid var(--surface-border);
+}
+
+.connected-state__footer-mark { color: var(--dream-rosegold); }
+
+.connected-state__footer-text {
+  font-family: var(--font-quote);
+  font-style: italic;
+  font-size: 17px;
+  color: var(--text-secondary);
+}
+
+/* ---------------------------------- */
+/* Waiting state — an invitation, not a*/
+/* loading screen                      */
+/* ---------------------------------- */
+
+.waiting-state {
+  background: var(--surface-card);
+  border: 1px solid var(--surface-border);
+  border-radius: var(--radius-xl);
+}
+
+.waiting-state__ring { border-color: var(--dream-lavender); }
+
+.waiting-state__icon {
+  background: var(--gradient-indigo-lavender);
+  color: var(--dream-bg-1);
+}
+
+.waiting-state__title {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 24px;
+  color: var(--dream-moonlight);
+}
+
+.waiting-state__subtitle { color: var(--text-secondary); }
+
+.waiting-state__code {
+  background: var(--surface-card);
+  border: 1px solid rgba(201, 182, 255, 0.24);
+  color: var(--dream-moonlight);
+  font-family: var(--font-display);
+}
+
+.waiting-state__btn--primary {
+  background: var(--gradient-indigo-lavender);
+  color: var(--dream-bg-1);
+}
+
+.waiting-state__btn--secondary {
+  background: var(--surface-card);
+  color: var(--dream-moonlight);
+  border: 1px solid var(--surface-border);
+}
+
+/* ---------------------------------- */
+/* Ambient background — same visual    */
+/* grammar as the splash: slow glows + */
+/* fine floating particles, no stickers*/
+/* ---------------------------------- */
+
+.page-background {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.ambient-glow {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(70px);
+  opacity: 0.5;
+}
+
+.ambient-glow--one {
+  top: -12%;
+  left: -12%;
+  width: 60vw;
+  height: 60vw;
+  background: var(--dream-lavender);
+}
+
+.ambient-glow--two {
+  top: 25%;
+  right: -18%;
+  width: 55vw;
+  height: 55vw;
+  background: var(--dream-pink);
+}
+
+.ambient-glow--three {
+  bottom: -18%;
+  left: 15%;
+  width: 50vw;
+  height: 50vw;
+  background: var(--dream-rosegold);
+}
+
+.floating-particles__dot {
+  background: var(--dream-moonlight);
+  box-shadow: 0 0 6px 1px rgba(245, 241, 255, 0.5);
+}
+
+/* ---------------------------------- */
+/* Shared small pieces (best-effort —  */
+/* see file header note on assumed     */
+/* class names)                        */
+/* ---------------------------------- */
+
+.divider {
+  position: relative;
+  height: 1px;
+  margin: 24px 0;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    var(--surface-border) 20%,
+    var(--surface-border) 80%,
+    transparent
+  );
+}
+
+.divider::after {
+  content: '✦';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: var(--dream-bg-1);
+  padding: 0 10px;
+  color: var(--dream-lavender);
+  font-size: 12px;
+}
+
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 8px;
+  padding: 32px 16px;
+}
+
+.empty-state__icon { font-size: 38px; }
+
+.empty-state__title {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 21px;
+  color: var(--dream-moonlight);
+}
+
+.empty-state__subtitle { color: var(--text-secondary); font-size: 14px; }
+
+.loading-skeleton {
+  background: linear-gradient(
+    90deg,
+    var(--surface-card) 25%,
+    rgba(255, 255, 255, 0.12) 50%,
+    var(--surface-card) 75%
+  );
+  background-size: 200% 100%;
+  animation: dream-shimmer 1.6s ease-in-out infinite;
+  border-radius: var(--radius-md);
+}
+
+@keyframes dream-shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .widget-card { transition: none; }
+}
+
+/* ==================================== */
+/* v2 — "Make the App Feel Alive"       */
+/* Additive layer only: new selectors   */
+/* for StoryTimeline + broken-grid card */
+/* variants, plus a few animated        */
+/* refinements to existing surfaces.    */
+/* Nothing above this line is removed.  */
+/* ==================================== */
+
+/* ---- Deeper background: fourth bloom + slow drift on all glows ---- */
+
+.ambient-glow--four {
+  top: 38%;
+  left: 38%;
+  width: 32vw;
+  height: 32vw;
+  background: var(--dream-moonlight);
+  opacity: 0.16;
+  filter: blur(90px);
+}
+
+.ambient-glow--one,
+.ambient-glow--two,
+.ambient-glow--three,
+.ambient-glow--four {
+  animation: ambient-glow-drift 22s ease-in-out infinite;
+}
+
+.ambient-glow--two { animation-duration: 26s; animation-delay: -6s; }
+.ambient-glow--three { animation-duration: 30s; animation-delay: -12s; }
+.ambient-glow--four { animation-duration: 34s; animation-delay: -18s; }
+
+@keyframes ambient-glow-drift {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  50% { transform: translate(3%, -4%) scale(1.06); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ambient-glow--one,
+  .ambient-glow--two,
+  .ambient-glow--three,
+  .ambient-glow--four {
+    animation: none;
+  }
+}
+
+/* ---- Hero card: slow breathing glow behind the content ---- */
+
+.dashboard-header::before {
+  animation: hero-glow-breathe 9s ease-in-out infinite;
+}
+
+@keyframes hero-glow-breathe {
+  0%, 100% { opacity: 0.85; }
+  50% { opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dashboard-header::before { animation: none; }
+}
+
+/* ---- Story timeline — "Our Story" as narrative, not a widget ---- */
+
+.story-timeline {
+  padding: 4px 4px 0;
+}
+
+.story-timeline__intro {
+  margin-bottom: 18px;
+}
+
+.story-timeline__title {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 21px;
+  color: var(--dream-moonlight);
+}
+
+.story-timeline__tagline {
+  margin-top: 4px;
+  font-family: var(--font-quote);
+  font-style: italic;
+  font-size: 15px;
+  color: var(--text-secondary);
+}
+
+.story-timeline__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.story-timeline__item {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  padding-bottom: 26px;
+}
+
+.story-timeline__item:last-child {
+  padding-bottom: 0;
+}
+
+/* The connecting line + node. Rail is a fixed-width column so the
+   dot lines up perfectly regardless of label length; the line itself
+   is drawn on ::before of the rail, from this node down to the next. */
+.story-timeline__rail {
+  position: relative;
+  flex-shrink: 0;
+  width: 20px;
+  display: flex;
+  justify-content: center;
+}
+
+.story-timeline__item:not(:last-child) .story-timeline__rail::before {
+  content: '';
+  position: absolute;
+  top: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 1px;
+  height: calc(100% + 6px);
+  background: linear-gradient(
+    to bottom,
+    var(--surface-border) 0%,
+    var(--surface-border) 85%,
+    transparent 100%
+  );
+}
+
+.story-timeline__node {
+  position: relative;
+  z-index: 1;
+  width: 10px;
+  height: 10px;
+  margin-top: 5px;
+  border-radius: 50%;
+  background: var(--surface-glass);
+  border: 1px solid var(--surface-border);
+}
+
+.story-timeline__item--done .story-timeline__node {
+  background: var(--dream-lavender);
+  border-color: var(--dream-lavender);
+  box-shadow: 0 0 0 3px rgba(201, 182, 255, 0.16);
+}
+
+.story-timeline__item--current .story-timeline__node {
+  width: 12px;
+  height: 12px;
+  margin-top: 4px;
+  background: var(--dream-pink);
+  border-color: var(--dream-pink);
+  box-shadow: 0 0 0 4px rgba(255, 182, 201, 0.22);
+}
+
+.story-timeline__node-pulse {
+  position: absolute;
+  inset: -6px;
+  border-radius: 50%;
+  border: 1px solid var(--dream-pink);
+  opacity: 0.6;
+  animation: timeline-pulse 2.4s ease-out infinite;
+}
+
+@keyframes timeline-pulse {
+  0% { transform: scale(0.7); opacity: 0.55; }
+  100% { transform: scale(1.9); opacity: 0; }
+}
+
+.story-timeline__content {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding-top: 1px;
+}
+
+.story-timeline__label {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 15px;
+  color: var(--text-secondary);
+}
+
+.story-timeline__item--current .story-timeline__label {
+  color: var(--dream-moonlight);
+}
+
+.story-timeline__description {
+  font-size: 12.5px;
+  color: var(--text-muted);
+}
+
+.story-timeline__item--current .story-timeline__description {
+  color: var(--dream-pink);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .story-timeline__node-pulse { animation: none; }
+}
+
+/* ---- Widget grid: broken-grid variants (wide/quote) ---- */
+
+/* 'wide' — the memory-first tile. Full width, photo-forward, soft
+   polaroid framing. Gracefully degrades to a warm icon wash when no
+   image exists yet instead of showing a broken/empty photo slot. */
+.widget-card--wide {
+  grid-column: 1 / -1;
+  padding: 0;
+  overflow: hidden;
+  background: var(--surface-card);
+  border: 1px solid var(--surface-border);
+}
+
+.widget-card__frame {
+  position: relative;
+  width: 100%;
+  min-height: 168px;
+  display: flex;
+  align-items: flex-end;
+}
+
+.widget-card__photo {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  filter: saturate(1.05);
+}
+
+.widget-card__frame::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to top, rgba(10, 6, 20, 0.72) 0%, rgba(10, 6, 20, 0.15) 55%, transparent 80%);
+  pointer-events: none;
+}
+
+.widget-card__frame--empty {
+  min-height: 148px;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(165deg, var(--color-indigo-soft, var(--color-primary-soft)), var(--surface-card));
+}
+
+.widget-card__frame--empty::after {
+  background: none;
+}
+
+.widget-card__frame-glyph {
+  font-size: 30px;
+  opacity: 0.55;
+  filter: blur(0.2px);
+}
+
+.widget-card__frame-caption {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 16px 18px;
+  width: 100%;
+}
+
+.widget-card--wide .widget-card__title {
+  color: var(--dream-moonlight);
+  font-size: 15px;
+}
+
+.widget-card--wide .widget-card__content {
+  color: var(--text-secondary);
+  -webkit-line-clamp: 1;
+}
+
+/* Photo tiles read as glass-mounted prints: a hairline "border" and
+   soft outer shadow rather than a flat crop — used sparingly (this
+   tile only), per "card personality... less is more". */
+.widget-card--wide .widget-card__frame:not(.widget-card__frame--empty) {
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.12);
+}
+
+/* 'quote' — message-like content styled as an emotional anchor
+   (large italic serif, soft quote mark, generous spacing) instead of
+   a normal icon-title-content tile. */
+.widget-card--quote {
+  grid-column: 1 / -1;
+  flex-direction: column;
+  align-items: flex-start;
+  min-height: 0;
+  padding: 20px 22px;
+  background: var(--gradient-header-wash), var(--surface-card);
+  border: 1px solid var(--surface-border);
+}
+
+.widget-card--quote .widget-card__icon {
+  display: none;
+}
+
+.widget-card--quote .widget-card__body {
+  margin-top: 0;
+  padding-right: 0;
+  width: 100%;
+}
+
+.widget-card--quote .widget-card__quote-mark {
+  display: block;
+  font-family: var(--font-quote);
+  font-size: 30px;
+  line-height: 1;
+  color: var(--dream-rosegold);
+  opacity: 0.8;
+  margin-bottom: 2px;
+}
+
+.widget-card--quote .widget-card__title {
+  font-family: var(--font-sans);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.widget-card--quote .widget-card__content {
+  margin-top: 8px;
+  font-family: var(--font-quote);
+  font-style: italic;
+  font-size: 18px;
+  line-height: var(--leading-relaxed);
+  color: var(--dream-moonlight);
+  -webkit-line-clamp: 3;
+}
+
+.widget-card--quote .widget-card__chevron {
+  display: none;
+}
+
+@media (hover: hover) {
+  .widget-card--quote:hover,
+  .widget-card--wide:hover {
+    box-shadow: var(--shadow-floating), var(--shadow-glass-inset);
+  }
+}
+
+/* ---- Bottom nav: slightly larger, gently glowing active tab ---- */
+
+.bottom-nav__item--active .bottom-nav__icon {
+  filter: drop-shadow(0 0 6px rgba(201, 182, 255, 0.45));
+}
+
+/* ==================================== */
+/* v3 — "Scrapbook" layer               */
+/* Floating quote, memories carousel /  */
+/* polaroids, wider section rhythm,     */
+/* softer icon glow, timeline polish.   */
+/* Additive only — nothing above this   */
+/* line is removed.                     */
+/* ==================================== */
+
+/* ---- Section rhythm: more room between major chapters ---- */
+
+.connected-state {
+  gap: 40px;
+}
+
+.connected-state > .dashboard-header {
+  margin-bottom: 0;
+}
+
+.connected-state > .connected-state__footer {
+  margin-top: 0;
+}
+
+/* ---- Floating quote — sits on the background, not in a card ---- */
+
+.floating-quote {
+  margin: 0;
+  padding: 8px 22px 4px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+
+.floating-quote__mark {
+  font-family: var(--font-quote);
+  font-size: 34px;
+  line-height: 1;
+  color: var(--dream-rosegold);
+  opacity: 0.55;
+}
+
+.floating-quote__text {
+  margin: 0;
+  max-width: 30ch;
+  font-family: var(--font-quote);
+  font-style: italic;
+  font-weight: 500;
+  font-size: 22px;
+  line-height: 1.45;
+  color: var(--dream-moonlight);
+}
+
+.floating-quote__ornament {
+  width: 34px;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--dream-lavender), transparent);
+  opacity: 0.6;
+}
+
+/* ---- Memories carousel — scrapbook page of polaroids ---- */
+
+.memories-carousel__header {
+  margin-bottom: 14px;
+}
+
+.memories-carousel__track {
+  display: flex;
+  gap: 18px;
+  padding: 6px 4px 14px;
+  margin: 0 -4px;
+  overflow-x: auto;
+  scroll-snap-type: x proximity;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+
+.memories-carousel__track::-webkit-scrollbar {
+  display: none;
+}
+
+.polaroid {
+  position: relative;
+  flex: 0 0 auto;
+  width: 156px;
+  margin: 0;
+  padding: 10px 10px 16px;
+  background: #f8f5ef;
+  border-radius: 3px;
+  box-shadow: var(--shadow-md);
+  scroll-snap-align: start;
+  transform-origin: center 30%;
+}
+
+.polaroid__tape {
+  position: absolute;
+  top: -10px;
+  left: 50%;
+  transform: translateX(-50%) rotate(-2deg);
+  width: 46px;
+  height: 18px;
+  background: rgba(245, 241, 255, 0.55);
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  box-shadow: var(--shadow-sm);
+}
+
+.polaroid__photo {
+  display: block;
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  overflow: hidden;
+  border-radius: 1px;
+  background: var(--surface-page);
+}
+
+.polaroid__photo img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.polaroid__caption {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  margin-top: 10px;
+  font-family: var(--font-quote);
+  font-style: italic;
+  font-size: 13px;
+  text-align: center;
+  color: var(--dream-bg-1);
+}
+
+.polaroid__date {
+  font-family: 'Caveat', var(--font-quote);
+  font-style: normal;
+  font-size: 16px;
+  color: rgba(26, 22, 37, 0.55);
+}
+
+.polaroid--empty {
+  display: flex;
+}
+
+.memories-carousel__empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  padding: 10px 4px 6px;
+}
+
+.polaroid__photo--empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: rgba(26, 22, 37, 0.35);
+  background: linear-gradient(165deg, rgba(201, 182, 255, 0.18), rgba(255, 182, 201, 0.14));
+}
+
+.memories-carousel__empty-text {
+  margin: 0;
+  font-family: var(--font-quote);
+  font-style: italic;
+  font-size: 15px;
+  color: var(--text-secondary);
+  text-align: center;
+}
+
+@media (hover: hover) {
+  .polaroid {
+    transition: transform 260ms var(--ease-standard, ease), box-shadow 260ms ease;
+  }
+  .polaroid:hover {
+    transform: translateY(-4px) rotate(0deg) !important;
+    box-shadow: var(--shadow-floating);
+  }
+}
+
+/* ---- Widget icons: soft floating glow, per "icons should feel   ---- */
+/* ---- soft, rounded, pastel, floating" (spec §13)                ---- */
+
+.widget-card__icon {
+  filter: drop-shadow(0 2px 10px rgba(201, 182, 255, 0.22));
+}
+
+.widget-card--hero .widget-card__icon {
+  filter: drop-shadow(0 2px 14px rgba(255, 255, 255, 0.28));
+}
+
+/* ---- Timeline polish: faded future, filled past, glowing present --- */
+
+.story-timeline__item--upcoming {
+  opacity: 0.6;
+}
+
+.story-timeline__item--done {
+  opacity: 0.92;
+}
+
+.story-timeline__item--current {
+  opacity: 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .polaroid { transition: none; }
+}
+
+/* ==================================== */
+/* v4 — Auth: "first page of a love     */
+/* story" instead of a login form.      */
+/* Additive only — nothing above this   */
+/* line is removed. Covers AuthLayout,  */
+/* Login, Signup, GlassInput, and the   */
+/* new GlassButton loading state.       */
+/* ==================================== */
+
+/* ---- Shell: shares the app's ambient backdrop + a small brand mark --- */
+
+.auth-shell {
+  position: relative;
+  min-height: 100vh;
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  overflow-y: auto;
+  padding: calc(env(safe-area-inset-top) + 28px) 20px calc(env(safe-area-inset-bottom) + 40px);
+}
+
+.auth-shell__brand {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 28px;
+  opacity: 0.85;
+}
+
+.auth-shell__brand-mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: var(--gradient-rose-lavender);
+  color: var(--dream-bg-1);
+}
+
+.auth-shell__brand-name {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 15px;
+  letter-spacing: 0.02em;
+  color: var(--dream-moonlight);
+}
+
+.auth-shell__content {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  flex: 1;
+}
+
+/* ---- Page: hero + card + footer, stacked and centered ---- */
+
+.auth-page {
+  width: 100%;
+  max-width: 380px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 28px;
+}
+
+.auth-hero {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  text-align: center;
+}
+
+.auth-hero__heart {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 64px;
+  height: 64px;
+  margin-bottom: 4px;
+  border-radius: 50%;
+  background: var(--gradient-indigo-lavender);
+  color: var(--dream-bg-1);
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  box-shadow: var(--shadow-glow-primary), var(--shadow-glass-inset);
+}
+
+.auth-hero__title {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 28px;
+  letter-spacing: 0.005em;
+  color: var(--dream-moonlight);
+}
+
+.auth-hero__subtitle {
+  font-family: var(--font-quote);
+  font-style: italic;
+  font-size: 17px;
+  color: var(--text-secondary);
+}
+
+/* ---- Card: frosted glass, soft border, no harsh edges ---- */
+
+.auth-card {
+  position: relative;
+  width: 100%;
+  padding: 30px 26px;
+  border-radius: var(--radius-xl);
+  background: var(--gradient-header-wash), var(--surface-card);
+  border: 1px solid var(--surface-border);
+  box-shadow: var(--shadow-floating), var(--shadow-glass-inset);
+  backdrop-filter: blur(18px) saturate(160%);
+  -webkit-backdrop-filter: blur(18px) saturate(160%);
+  overflow: hidden;
+}
+
+/* A single small decorative touch — a soft folded-corner "ribbon",
+   not a literal graphic — kept subtle per "never overdo it". */
+.auth-card::before {
+  content: '';
+  position: absolute;
+  top: -18px;
+  right: 22px;
+  width: 36px;
+  height: 36px;
+  background: linear-gradient(135deg, rgba(255, 182, 201, 0.5), rgba(201, 182, 255, 0.35));
+  border-radius: 6px;
+  transform: rotate(45deg);
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+.auth-card__error {
+  margin-bottom: 18px;
+  padding: 11px 14px;
+  border-radius: var(--radius-md);
+  background: rgba(255, 111, 129, 0.12);
+  border: 1px solid rgba(255, 111, 129, 0.28);
+  color: #ffb3bd;
+  font-size: 13px;
+  line-height: var(--leading-normal);
+}
+
+.auth-form {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.auth-form__submit {
+  width: 100%;
+  margin-top: 6px;
+  justify-content: center;
+  padding-top: 14px;
+  padding-bottom: 14px;
+  font-size: 15px;
+}
+
+/* ---- Footer: warm invitation instead of a bare account-switch link -- */
+
+.auth-footer {
+  font-size: 14px;
+  color: var(--text-secondary);
+  text-align: center;
+}
+
+.auth-footer__link {
+  color: var(--dream-lavender);
+  font-weight: 600;
+  text-decoration: none;
+  margin-left: 4px;
+  transition: color var(--duration-normal, 220ms) ease;
+}
+
+@media (hover: hover) {
+  .auth-footer__link:hover {
+    color: var(--dream-pink);
+    text-decoration: underline;
+  }
+}
+
+/* ---- GlassInput: the actual fix for illegible text/placeholder/    -- */
+/* ---- focus/autofill, styled to match the rest of the glass system. -- */
+
+.glass-input {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.glass-input__label {
+  font-size: 12.5px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--text-secondary);
+  padding-left: 2px;
+}
+
+.glass-input__field {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.glass-input__control {
+  width: 100%;
+  min-height: 50px;
+  padding: 0 16px;
+  border-radius: var(--radius-md);
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: #f8f4ff;
+  font-family: var(--font-sans);
+  font-size: 15px;
+  caret-color: var(--dream-pink);
+  outline: none;
+  transition: border-color 200ms var(--ease-standard, ease),
+              box-shadow 200ms var(--ease-standard, ease),
+              background 200ms var(--ease-standard, ease);
+}
+
+.glass-input__control::placeholder {
+  color: rgba(248, 244, 255, 0.55);
+}
+
+/* Explicitly kill the browser default outline/blue ring before
+   applying our own — Safari/Chrome both need this pair. */
+.glass-input__control:focus,
+.glass-input__control:focus-visible {
+  outline: none;
+  border-color: rgba(201, 182, 255, 0.55);
+  background: rgba(255, 255, 255, 0.11);
+  box-shadow: 0 0 0 4px rgba(201, 182, 255, 0.16), 0 0 20px rgba(201, 182, 255, 0.18);
+}
+
+.glass-input--error .glass-input__control {
+  border-color: rgba(255, 111, 129, 0.5);
+}
+
+.glass-input--error .glass-input__control:focus {
+  box-shadow: 0 0 0 4px rgba(255, 111, 129, 0.16);
+}
+
+.glass-input__error {
+  margin: 0;
+  font-size: 12px;
+  color: #ffb3bd;
+  padding-left: 2px;
+}
+
+.glass-input__toggle {
+  position: absolute;
+  right: 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  border-radius: 50%;
+  transition: color 160ms ease, background 160ms ease;
+}
+
+.glass-input__toggle:hover {
+  color: var(--dream-moonlight);
+  background: rgba(255, 255, 255, 0.06);
+}
+
+/* Chrome/Edge autofill fix — without this, autofilled fields render
+   with a harsh white/yellow background and near-invisible dark text
+   regardless of anything above. Long transition-delay trick defers
+   the browser's forced background indefinitely. */
+.glass-input__control:-webkit-autofill,
+.glass-input__control:-webkit-autofill:hover,
+.glass-input__control:-webkit-autofill:focus {
+  -webkit-text-fill-color: #f8f4ff;
+  -webkit-box-shadow: 0 0 0 1000px rgba(40, 32, 58, 0.9) inset;
+  box-shadow: 0 0 0 1000px rgba(40, 32, 58, 0.9) inset;
+  caret-color: var(--dream-pink);
+  transition: background-color 9999s ease-in-out 0s, color 9999s ease-in-out 0s;
+}
+
+/* ---- GlassButton: loading spinner (additive, opt-in via `loading`) -- */
+
+.glass-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.glass-button--loading {
+  opacity: 0.85;
+  cursor: default;
+}
+
+.glass-button__spinner {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.35);
+  border-top-color: #fff;
+  animation: glass-button-spin 0.7s linear infinite;
+}
+
+.glass-button--secondary .glass-button__spinner {
+  border: 2px solid rgba(201, 182, 255, 0.3);
+  border-top-color: var(--dream-lavender);
+}
+
+@keyframes glass-button-spin {
+  to { transform: rotate(360deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .glass-button__spinner { animation-duration: 1.2s; }
+}
+
+@media (min-width: 480px) {
+  .auth-hero__title { font-size: 30px; }
+  .auth-card { padding: 34px 32px; }
+}
